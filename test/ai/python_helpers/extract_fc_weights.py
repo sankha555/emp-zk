@@ -20,8 +20,8 @@ def get_onnx_parameters_as_arrays(onnx_model):
     return params
 
 
-model_path = "test/eran_models/cifar_relu_4_100.onnx"
-output_path = "test/ai/data/parameters/cifar_relu_4_100_1.txt"
+model_path = "test/eran_models/cifar_conv_relu_small.onnx"
+output_path = "test/ai/data/parameters/cifar_conv_relu_small_1.txt"
 
 model, is_conv = read_onnx_net(model_path)
 params = get_onnx_parameters_as_arrays(model)

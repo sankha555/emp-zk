@@ -109,4 +109,111 @@ class ParametersVerification {
     }
 };
 
+
+template <typename T>
+class Kernel2D {
+    public:
+
+    int out_c;
+    int in_c;
+    int h;
+    int w;
+    int party = PUBLIC;
+
+
+    int params_per_out_channel;
+    int params_per_in_channel;
+
+
+    T* filter_matrix;
+
+    Kernel2D(int out_c, int in_c, int h, int w, int party = ALICE){
+        this->out_c = out_c;
+        this->in_c = in_c;
+        this->h = h;
+        this->w = w;
+        this->party = party;
+        this->filter_matrix = new T[out_c * in_c * h * w];
+
+
+        this->params_per_out_channel = this->in_c * this->h * this->w;
+        this->params_per_in_channel = this->h * this->w;
+    }
+
+    int num_parameters(){
+        return out_c * in_c * h * w;
+    }
+
+    void read_filters(const char* filepath, int offset){
+        float* raw_weights = new float[this->num_parameters()];
+        if(this->party != BOB){
+            read_next_elements(this->num_parameters(), raw_weights, offset, filepath);
+        }
+
+        if constexpr (std::is_same<T, IntFp>::value){
+            IntFp* temp_weights = new IntFp[this->num_parameters()];
+            authenticate_over_field(this->num_parameters(), raw_weights, temp_weights, this->party);
+            
+            for(int q = 0; q < this->out_c; q++){
+                // for each out channel
+
+                for(int p = 0; p < this->in_c; p++){
+                    // for each in channel
+
+                    for(int i = 0; i < this->h; i++){
+                        for(int j = 0; j < this->w; j++){
+                            this->filter_matrix[
+                                q * params_per_out_channel +
+                                p * params_per_in_channel +
+                                i * this->h +
+                                j
+                            ] = temp_weights[
+                                q * params_per_out_channel +
+                                p * params_per_in_channel +
+                                i * this->h +
+                                j
+                            ];
+                        }
+                    }
+                }
+            }
+
+            delete[] temp_weights;
+
+        } else if constexpr (std::is_same<T, float>::value) {
+
+            for(int q = 0; q < this->out_c; q++){
+                // for each out channel
+
+                for(int p = 0; p < this->in_c; p++){
+                    // for each in channel
+
+                    for(int i = 0; i < this->h; i++){
+                        for(int j = 0; j < this->w; j++){
+                            this->filter_matrix[
+                                q * params_per_out_channel +
+                                p * params_per_in_channel +
+                                i * this->h +
+                                j
+                            ] = raw_weights[
+                                q * params_per_out_channel +
+                                p * params_per_in_channel +
+                                i * this->h +
+                                j
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+
+        delete[] raw_weights;
+    }
+
+
+    void print_parameters(){
+        ;
+    }
+};
+
 #endif

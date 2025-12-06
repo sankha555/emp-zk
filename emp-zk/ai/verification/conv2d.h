@@ -17,31 +17,82 @@
 using namespace emp;
 using namespace std;
 
+
+
+
 template <typename T>
-class Affine : public Layer<T> {
+class Conv2D : public Layer<T> {
     public:
 
-    ParametersVerification<T>* param;
+    int in_channels;
+    int out_channels;
+    int image_h;
+    int image_w;
+    int kernel_h;
+    int kernel_w;
+    int stride_h;
+    int stride_w;
+    int pad_h;
+    int pad_w;
+    int out_h;
+    int out_w;
+
+    Kernel2D<T>* kernel;
+
+    void set_output_image_sizes(){
+        this->out_h = (int) (this->image_h + 2*this->pad_h - this->kernel_h)/this->stride_h;
+
+        this->out_w = (int) (this->image_w + 2*this->pad_w - this->kernel_w)/this->stride_w;
+    }
     
-    Affine(int input_size, int output_size, int max_coeffs = -1, int party = PUBLIC) : Layer<T>(input_size, output_size, max_coeffs, party){
+    Conv2D(
+        int in_channels, int out_channels, int image_h, int image_w, 
+        int h, int w, int stride_h, int stride_w, int pad_h, int pad_w,
+        int max_coeffs = -1, int party = PUBLIC
+    ){
+        this->party = party;
+        this->type = LAYER_TYPE::CONV2D;
+
+        this->in_channels = in_channels;
+        this->out_channels = out_channels;
+        this->image_h = image_h;
+        this->image_w = image_w;
+        this->kernel_h = h;
+        this->kernel_w = w;
+        this->stride_h = stride_h;
+        this->stride_w = stride_w;
+        this->pad_h = pad_h;
+        this->pad_w = pad_w;
+
+        // set feature map sizes
+        this->input_size = in_channels * image_h * image_w;
+        this->input = new T[this->input_size+1];  // +1 for bias
+
+        this->set_output_image_sizes();
+        this->output_size = this->out_channels * this->out_h * this->out_w;
+        this->output = new T[this->output_size];
+
+
+        this->kernel = new Kernel2D<T>(this->out_channels, this->in_channels, this->kernel_h, this->kernel_w, this->party);
+
+
+        // ai tools
+        this->lower_bounds = new T[this->output_size];
+        this->upper_bounds = new T[this->output_size];
+        
         if(max_coeffs == -1){
             max_coeffs = this->input_size+1;
         }
         this->max_coeffs = max_coeffs;
 
-        this->input = new T[input_size+1];  // +1 for bias
-        this->output = new T[output_size];
-        this->param = new ParametersVerification<T>(output_size, input_size, party);
-        this->type = LAYER_TYPE::AFFINE;
 
-        this->lower_bounds = new T[output_size];
-        this->upper_bounds = new T[output_size];
+        this->lower_constraints = new T[this->output_size*this->max_coeffs];
+        this->upper_constraints = new T[this->output_size*this->max_coeffs];
+
+        this->backsubstituted_lower_constraints= new T[this->output_size*this->max_coeffs];
+        this->backsubstituted_upper_constraints= new T[this->output_size*this->max_coeffs];
+
         
-        this->lower_constraints = new T[output_size*this->max_coeffs];
-        this->upper_constraints = new T[output_size*this->max_coeffs];
-
-        this->backsubstituted_lower_constraints= new T[output_size*this->max_coeffs];
-        this->backsubstituted_upper_constraints= new T[output_size*this->max_coeffs];
     }
 
     void forward(Layer<T>* input_layer, Layer<T>* prev_layer, bool do_inference = true){
@@ -78,19 +129,9 @@ class Affine : public Layer<T> {
         // cout << "Layer " << this->layer_num << " done!\n";
 
         if(do_inference){
-            if constexpr (std::is_same<IntFp, T>::value && SECURE){
-                for(int i = 0; i < this->output_size; i++){
-                    this->output[i] = inner_product_bundle(this->input_size + 1, this->param->param_matrix + i*(this->input_size+1), this->input, this->party);
-                }
-
-                ZKgeneralTruncAny(this->party, this->output, this->output, this->output_size, FXPSCALE);
-
-            } else {
-            
-                affine_layer(this->output_size, this->input_size, this->param->param_matrix, this->input, this->output);
-                if constexpr (std::is_same<T, IntFp>::value){
-                    normalize(this->output_size, this->output, this->output);
-                }
+            affine_layer(this->output_size, this->input_size, this->param->param_matrix, this->input, this->output);
+            if constexpr (std::is_same<T, IntFp>::value){
+                normalize(this->output_size, this->output, this->output);
             }
         }
     }

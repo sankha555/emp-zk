@@ -56,7 +56,15 @@ class ReLU : public Layer<T> {
         this->time_for_fp += tt;
 
         if(do_inference){
-            relu_layer(this->input_size, this->input, this->output);
+            if constexpr (std::is_same<IntFp, T>::value && SECURE){
+                ZKcmpPositive(this->party, this->input, ZERO_COMP_CONSTANT, this->output, this->output_size);
+                for(int i = 0; i < this->output_size; i++){
+                    this->output[i] = this->input[i] * this->output[i];
+                }
+
+            } else {
+                relu_layer(this->input_size, this->input, this->output);
+            }
         }
     }
 
