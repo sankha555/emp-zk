@@ -21,7 +21,7 @@ template <typename T>
 class Affine : public Layer<T> {
     public:
 
-    Parameters<T>* param;
+    ParametersVerification<T>* param;
     
     Affine(int input_size, int output_size, int max_coeffs = -1, int party = PUBLIC) : Layer<T>(input_size, output_size, max_coeffs, party){
         if(max_coeffs == -1){
@@ -31,7 +31,7 @@ class Affine : public Layer<T> {
 
         this->input = new T[input_size+1];  // +1 for bias
         this->output = new T[output_size];
-        this->param = new Parameters<T>(output_size, input_size);
+        this->param = new ParametersVerification<T>(output_size, input_size, party);
         this->type = LAYER_TYPE::AFFINE;
 
         this->lower_bounds = new T[output_size];
@@ -54,7 +54,7 @@ class Affine : public Layer<T> {
 
         // for bias
         if constexpr (std::is_same<T, IntFp>::value) {
-            this->input[this->input_size] = IntFp(1 << FXPSCALE);
+            this->input[this->input_size] = IntFp(1ULL << FXPSCALE);
         } else if constexpr (std::is_same<T, float>::value) {
             this->input[this->input_size] = float(1);
         }
@@ -104,7 +104,7 @@ class Affine : public Layer<T> {
             T* copied_lc = new T[2*(this->max_coeffs - 1)];
 
             for(int i = 0; i < this->output_size; i++){
-                
+                // cerr << "N" << i << "\n";
                 ZKcmpPositive(this->party, this->lower_constraints + i*this->max_coeffs, ZERO_COMP_CONSTANT, coeff_sign, this->max_coeffs - 1);
                 
                 for(int j = 0; j < this->max_coeffs - 1; j++){
@@ -130,7 +130,6 @@ class Affine : public Layer<T> {
             delete[] coeff_sign;
 
             double tt = time_from(start);
-            cout << "time for lb: " << tt << " microsec\n";
 
 
             // restore the fixed-point scale
@@ -241,6 +240,10 @@ class Affine : public Layer<T> {
             for(int j = 0; j < this->max_coeffs; j++){
                 this->lower_constraints[i*this->max_coeffs + j] = (this->param->param_matrix[i*this->max_coeffs + j]);
             }
+        }
+
+        if constexpr (std::is_same<IntFp, T>::value){
+            // cerr << "w[6][644] = " << HIGH64(this->lower_constraints[6*this->max_coeffs + 0].value) << "\n";
         }
     }
 

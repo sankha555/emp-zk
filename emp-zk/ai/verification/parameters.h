@@ -13,7 +13,7 @@ using namespace emp;
 using namespace std;
 
 template <typename T>
-class Parameters {
+class ParametersVerification {
     public:
 
     // [m x (n + 1)] matrix [+1 for bias]
@@ -23,7 +23,7 @@ class Parameters {
 
     T* param_matrix;
 
-    Parameters(int m, int n, int party = PUBLIC){
+    ParametersVerification(int m, int n, int party = ALICE){
         this->m = m;
         this->n = n;
         this->party = party;

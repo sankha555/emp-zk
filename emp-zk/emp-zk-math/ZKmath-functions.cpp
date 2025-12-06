@@ -373,6 +373,9 @@ void ZKcmpPositive(int party, IntFp *x, uint64_t c, IntFp *y, int dim)
 	for (int i = 0; i < dim; i++){
 		if (party == ALICE){
 			x_field = (uint64_t)HIGH64(x[i].value);
+			if (x_field >= PR) {
+				std::cerr << "[OVERFLOW!] " << i << ' ' << x_field << std::endl;
+			}
 		}
 		for (int j = 0; j < FINIAL_CMP_LUT_NUM - 1; j++){
 			if (party == ALICE){
@@ -475,6 +478,11 @@ void ZKcmpPositive(int party, IntFp *x, uint64_t c, IntFp *y, int dim)
 
 		// step 9: compute v - 1  for checkzero
 		zero.push_back(v[i] + (PR - 1));
+
+		if (HIGH64(zero[zero.size()-1].value)){
+			std::cerr << zero.size()-1 << ' ' << HIGH64(zero[zero.size()-1].value) << " HAHA " << v_field << std::endl;
+		} 
+
 	}
 
 	// step 10: checkzero

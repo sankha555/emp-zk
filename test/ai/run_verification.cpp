@@ -14,6 +14,7 @@ int base_example = 0;
 int num_examples = 0;
 float epsilon;
 string model_name;
+bool print_to_stdout = false;
 
 string CONFIG_PATH_ROOT = "test/ai/data/configs/";
 string INPUTS_PATH = "";
@@ -28,6 +29,7 @@ void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   auto start = clock_start();
 
   int num_examples_verified = 0;
+  int num_examples_classified = 0;
 
   // float 
   std::ofstream file(std::string(LOGS_PATH) + "_float_worker_" + std::to_string(port - 10000 + 1) + ".txt");
@@ -37,17 +39,25 @@ void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   model_float->load_weights_and_biases(PARAMETERS_PATH.c_str());
 
   for(int i = base_example; i < base_example + num_examples; i++){
-    bool verified = verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon);
+    auto result = verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon);
+    bool classified = result.first;
+    bool verified = result.second;
+
     num_examples_verified += (int) verified;
-    model_float->describe(false, false);
-    cout << (verified ? "YES" : "NO") << "\n";
+    num_examples_classified += (int) classified;
+
+    cout << "EXAMPLE " << i+1 << " : " << (verified ? "YES" : "NO") << "\n";
   }
-  cout << "Verified " << num_examples_verified << "/" << num_examples << " examples\n";
+  cout << "Verified " << num_examples_verified << "/" << num_examples << " examples [ correctly classified = " << num_examples_classified << " ]\n";
 
   double tt = time_from(start);
   cout << "\nAvg. time to verify: " << (tt/1000000)/num_examples << " s\n";
 
   std::cout.rdbuf(original_buf);  
+
+  cout << "Float verification completed\n";
+  cout << "Verified " << num_examples_verified << "/" << num_examples << " examples [ correctly classified = " << num_examples_classified << " ]\n";
+  cout << "\n";
 }
 
 
@@ -60,19 +70,36 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   init_verification();
   startComputation(party);
 
+  double tt;
+
   std::ofstream field_file(std::string(LOGS_PATH) + "_worker_" + std::to_string(port - 10000 + 1) + ".txt");
-  std::streambuf* original_buf2 = std::cout.rdbuf(field_file.rdbuf());
+  std::streambuf* original_buf2;
+  if(!print_to_stdout) original_buf2 = std::cout.rdbuf(field_file.rdbuf());
 
   VerifiableFeedForwardNeuralNetwork<IntFp>* model_field = create_model<IntFp>(num_layers, layer_specs, party);
   model_field->load_weights_and_biases(PARAMETERS_PATH.c_str());
 
-  auto start = clock_start();
   int num_examples_verified = 0;
+  int num_examples_classified = 0;
+
+  auto start = clock_start();
   for(int i = base_example; i < base_example + num_examples; i++){
-    bool verified = verify_example<IntFp>(model_field, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon);
+    auto result = verify_example<IntFp>(model_field, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon);
+    bool classified = result.first;
+    bool verified = result.second;
+
     num_examples_verified += (int) verified;
-    flush(cout);
+    num_examples_classified += (int) classified;
+
+    tt = time_from(start);
+
+    if(print_to_stdout){
+      cout << "\rVerified: " << num_examples_verified << "/" << (i+1) << " images [Avg. time = " << (tt/(i+1))/1e6 << " sec]" << std::flush;
+    } else {
+      cout << (verified ? "YES" : "NO") << "\n";
+    }
   }
+  cout << "\n";
 
   cout << "Verified " << num_examples_verified << "/" << num_examples << " examples\n";
 
@@ -81,11 +108,11 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
     cout << "\n" << (cheated ? "\033[31mVerfication failed!" : "\033[32mVerfication successful!") << "\033[0m\n";
   }
 
-  double tt = time_from(start);
+  tt = time_from(start);
   cout << "\nAvg. time to verify: " << (tt/1000000)/num_examples << " s\n";
   cout << "Communication: " << ios[0]->counter/(1024.0 * 1024.0) << " MB\n";
 
-  std::cout.rdbuf(original_buf2);
+  if(!print_to_stdout) std::cout.rdbuf(original_buf2);
 }
 
 
@@ -141,6 +168,12 @@ int main(int argc, char **argv) {
   if(argc > 5){
     num_examples = atoi(argv[5]);
   }
+
+  if(argc > 6){
+    print_to_stdout = (bool) atoi(argv[6]);
+  }
+
+  cout << "PARTY = " << party << "\n";
 
   // fflush(stdout);
   test_verification(ios, party);

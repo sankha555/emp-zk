@@ -139,7 +139,7 @@ class VerifiableFeedForwardNeuralNetwork {
     }
 
 
-    bool forward(bool do_backsubstitution = false, bool do_inference = true){
+    std::pair<bool, bool> forward(bool do_backsubstitution = false, bool do_inference = true){
         Layer<T>* prev_layer = nullptr;
         Layer<T>* input_layer = layers[0];
 
@@ -151,6 +151,9 @@ class VerifiableFeedForwardNeuralNetwork {
         
         bool verification_result;
         verification_result = ((Output<T>*) layers[this->num_layers-1])->verified;
+
+        bool classification_result;
+        classification_result = ((Output<T>*) layers[this->num_layers-1])->correctly_classified;
 
 
         if(DO_DP_BS){
@@ -168,7 +171,7 @@ class VerifiableFeedForwardNeuralNetwork {
 
         layers[num_layers - 1]->describe(false, false);
 
-        return verification_result;
+        return {classification_result, verification_result};
     }
 
     void describe(bool print_parameters = true, bool print_expressions = false){

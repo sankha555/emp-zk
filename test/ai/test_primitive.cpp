@@ -79,10 +79,10 @@ void test_inner_product_without_converters(BoolIO<NetIO> *ios[threads], int part
     int64_t* a_int = new int64_t[sz];
     int64_t* b_int = new int64_t[sz];
     for(int i = 0; i < sz; i++){
-        a_int[i] = a[i] * (1 << FXPSCALE);
-        b_int[i] = b[i] * (1 << FXPSCALE);
+        a_int[i] = a[i] * (1ULL << FXPSCALE);
+        b_int[i] = b[i] * (1ULL << FXPSCALE);
     }
-    cout << "Inner Product [FXP CLR]: " << (inner_product_emp(sz, a_int, b_int)*1.0/(1 << FXPSCALE))/(1 << FXPSCALE) << "\n";
+    cout << "Inner Product [FXP CLR]: " << (inner_product_emp(sz, a_int, b_int)*1.0/(1ULL << FXPSCALE))/(1ULL << FXPSCALE) << "\n";
 
     Integer* a_Integer = new Integer[sz];
     Integer* b_Integer = new Integer[sz];
@@ -131,12 +131,12 @@ void test_relu_without_converters(BoolIO<NetIO> *ios[threads], int party){
     Integer ZERO(FXPBW, 0, PUBLIC);
     cout << "ReLU [FXP]   : ";
     for(int i = 0; i < sz; i++){
-        a_int[i] = a[i] * (1 << FXPSCALE);
+        a_int[i] = a[i] * (1ULL << FXPSCALE);
         a_Integer[i] = Integer(FXPBW, a_int[i] > 0 ? a_int[i] : PR + a_int[i], PUBLIC);
         // a_Integer[i] = Integer(FXPBW, a_int[i], PUBLIC);
     
         a_ReLU[i] = a_Integer[i].If(!a_Integer[i].geq(ZERO), ZERO);
-        cout << a_ReLU[i].reveal<uint64_t>()*1.0 / (1 << FXPSCALE) << " ";
+        cout << a_ReLU[i].reveal<uint64_t>()*1.0 / (1ULL << FXPSCALE) << " ";
     }
     cout << "\n";
 }
@@ -147,7 +147,7 @@ void test_Integer(BoolIO<NetIO> *ios[threads], int party){
     setup_zk_arith<BoolIO<NetIO>>(ios, threads, party);
 
     float a = -4.2921;
-    int64_t a_int = a * (1 << FXPSCALE);
+    int64_t a_int = a * (1ULL << FXPSCALE);
 
     cout << a_int << "\n";
 
@@ -180,7 +180,7 @@ void test_double_mult(BoolIO<NetIO> *ios[threads], int party){
     cout << a_float[2] << "\n";
 
     for(int i = 0; i < 2; i++){
-        a_int[i] = a_float[i] * (1 << FXPSCALE);
+        a_int[i] = a_float[i] * (1ULL << FXPSCALE);
         a_Integer[i] = Integer(FXPBW, a_int[i] > 0 ? a_int[i] : PR + a_int[i]);
         a_IntFp[i] = IntFp(a_Integer[i].reveal<uint64_t>());
     }
@@ -198,7 +198,7 @@ void test_Integer_signed(BoolIO<NetIO> *ios[threads], int party){
     setup_plain_prot(false, "");
 
     float a_float = -3.141;
-    int64_t a_int = a_float * (1 << FXPSCALE);
+    int64_t a_int = a_float * (1ULL << FXPSCALE);
     cout << a_int << "\n";
 
     Integer a_Integer(FXPBW, a_int);
@@ -216,7 +216,7 @@ void test_IntFp_signed(BoolIO<NetIO> *ios[threads], int party){
     IntFp* a_IntFp = new IntFp[4];
 
     for(int i = 0; i < 2; i++){
-        a_IntFp[i] = IntFp(PR - 3.141 * (1 << FXPSCALE), PUBLIC);
+        a_IntFp[i] = IntFp(PR - 3.141 * (1ULL << FXPSCALE), PUBLIC);
     }
 
     a_IntFp[2] = a_IntFp[0] * a_IntFp[1];
@@ -237,10 +237,10 @@ void test_Integer_normalization(BoolIO<NetIO> *ios[threads], int party){
     setup_plain_prot(false, "");
 
     float a_float = -3.141;
-    int64_t a_int = a_float * (1 << FXPSCALE);
+    int64_t a_int = a_float * (1ULL << FXPSCALE);
     Integer a_Integer(FXPBW, a_int);
 
-    a_Integer = a_Integer * Integer(FXPBW, -13.141*(1 << FXPSCALE));
+    a_Integer = a_Integer * Integer(FXPBW, -13.141*(1ULL << FXPSCALE));
     cout << (a_Integer.reveal<uint64_t>()) << "\n";
 
     a_Integer = normalize(a_Integer);

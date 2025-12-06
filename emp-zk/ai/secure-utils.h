@@ -11,12 +11,17 @@ void authenticate_over_field(int sz, float* reals, IntFp* fields, int party){
     uint64_t unsigned_scaled_real = 0;
     for(int i = 0; i < sz; i++){
         if(party == ALICE){
-            int64_t scaled_real = reals[i] * (1 << FXPSCALE);
-            unsigned_scaled_real = (scaled_real > 0 ? scaled_real : PR + scaled_real);
+            int64_t scaled_real = floor(reals[i] * (1ULL << FXPSCALE));
+
+            unsigned_scaled_real = (scaled_real >= 0 ? scaled_real : PR + scaled_real);
         }
         
         fields[i] = IntFp(unsigned_scaled_real, ALICE);
     }
+    // int64_t x_scale = floor(x * (1ULL << scale));
+    // // cout << "x_scale = " << x_scale << endl;
+    // uint64_t y = x_scale < 0 ? PR + x_scale : x_scale; 
+    // return y;
 }
 
 

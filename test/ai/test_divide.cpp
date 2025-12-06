@@ -54,15 +54,15 @@ void test_divide(BoolIO<NetIO> *ios[threads], int party){
     setup_zk_arith<BoolIO<NetIO>>(ios, threads, party);
 
     float a_float = 5.3928;
-    int64_t a_int = a_float * (1 << FXPSCALE);
+    int64_t a_int = a_float * (1ULL << FXPSCALE);
     IntFp a_IntFp(a_int > 0 ? a_int : a_int + PR, PUBLIC);
 
     float b_float = -2.684;
-    int64_t b_int = b_float * (1 << FXPSCALE);
+    int64_t b_int = b_float * (1ULL << FXPSCALE);
     IntFp b_IntFp(a_int > 0 ? b_int : b_int + PR, PUBLIC);
 
     float c_float = 1.333;
-    int64_t c_int = c_float * (1 << FXPSCALE);
+    int64_t c_int = c_float * (1ULL << FXPSCALE);
     IntFp c_IntFp(c_int > 0 ? c_int : c_int + PR, PUBLIC);
 
     // fixed_point_divide(a_IntFp, b_IntFp);
@@ -87,12 +87,12 @@ void test_inverse(BoolIO<NetIO> *ios[threads], int party){
     setup_zk_arith<BoolIO<NetIO>>(ios, threads, party);
 
     float a_float = 30;
-    int64_t a_int = a_float * (1 << FXPSCALE);
+    int64_t a_int = a_float * (1ULL << FXPSCALE);
     IntFp a_IntFp(a_int > 0 ? a_int : a_int + PR, PUBLIC);
 
 
     float b_float = 5;
-    int64_t b_int = b_float * (1 << FXPSCALE);
+    int64_t b_int = b_float * (1ULL << FXPSCALE);
     IntFp b_IntFp(b_int > 0 ? b_int : b_int + PR, PUBLIC);
 
 

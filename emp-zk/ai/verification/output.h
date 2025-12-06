@@ -16,6 +16,7 @@ class Output : public Layer<T> {
     public:
     Layer<T>* prev_layer;
     int ground_truth;
+    bool correctly_classified = false;
     bool verified = false;
 
     Output(int input_size, int output_size, int max_coeffs = 2, int party = PUBLIC) : Layer<T>(input_size, output_size, max_coeffs, party){
@@ -61,15 +62,14 @@ class Output : public Layer<T> {
 
         int prediction = classify();
         if (prediction != ground_truth){
+            this->correctly_classified = false;
             cout << "PREDICTED CLASS: " << prediction << "; GROUND TRUTH = " << this->ground_truth << "\n";
             return;
         } else {
+            this->correctly_classified = true;
             cout << "PREDICTED CLASS: " << prediction << "\n";
-        }
-        
-        verify(ground_truth);
-
-        cout << "VERIFIED: " << (this->verified ? "YES" : "NO") << "\n\n"; 
+            verify(ground_truth);
+        }    
     }
 
 
@@ -278,6 +278,7 @@ class Output : public Layer<T> {
         this->upper_constraints = new T[this->output_size*this->max_coeffs];
 
         this->is_backsubstituted = false;
+        this->correctly_classified = false;
         this->verified = false;
     }
 

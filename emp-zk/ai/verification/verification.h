@@ -3,6 +3,7 @@
 
 #include <emp-zk/ai/verification/layer.h>
 #include <emp-zk/ai/verification/input.h>
+#include <emp-zk/ai/verification/parameters.h>
 #include <emp-zk/ai/verification/affine.h>
 #include <emp-zk/ai/verification/relu.h>
 #include <emp-zk/ai/verification/output.h>

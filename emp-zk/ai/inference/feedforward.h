@@ -158,7 +158,7 @@ class FFLayer {
         }
         if(type == AFFINE){
             if constexpr (std::is_same<T, IntFp>::value) {
-                input[input_size] = IntFp(1 << FXPSCALE);
+                input[input_size] = IntFp(1ULL << FXPSCALE);
             } else if constexpr (std::is_same<T, float>::value) {
                 input[input_size] = float(1);
             }

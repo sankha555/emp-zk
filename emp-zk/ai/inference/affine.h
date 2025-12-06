@@ -32,7 +32,7 @@ int64_t inner_product_emp(int n, int64_t* x, int64_t* y){
 template<>
 Integer inner_product_emp(int n, Integer* x, Integer* y){
     Integer sum(FXPBW, 0, PUBLIC);
-    sum = sum * Integer(FXPBW, 1 << FXPSCALE, PUBLIC);
+    sum = sum * Integer(FXPBW, 1ULL << FXPSCALE, PUBLIC);
     for(int i = 0; i < n; i++){
         sum = sum + x[i]*y[i];
     }

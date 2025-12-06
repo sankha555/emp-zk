@@ -43,7 +43,7 @@ float INPUT_MAX = 1e9;
 void init_verification(){
     FIELD_ZERO = IntFp(0, PUBLIC);
     FIELD_ONE = IntFp(1, PUBLIC);
-    FIELD_SCALED_ONE = IntFp(1 << FXPSCALE, PUBLIC);
+    FIELD_SCALED_ONE = IntFp(1ULL << FXPSCALE, PUBLIC);
     FIELD_MINUS_ONE = IntFp(PR - 1, PUBLIC);
 }
 
@@ -174,9 +174,9 @@ template<>
 IntFp constant<IntFp>(float x, int party){
     IntFp c(0, party);
     if(x >= 0){
-        c = IntFp(x*(1 << FXPSCALE), PUBLIC);
+        c = IntFp(x*(1ULL << FXPSCALE), PUBLIC);
     } else {
-        c = IntFp(PR + x*(1 << FXPSCALE), PUBLIC);
+        c = IntFp(PR + x*(1ULL << FXPSCALE), PUBLIC);
     }
     return c;
 }
@@ -191,7 +191,7 @@ float format_EMP_Integer(Integer a_Integer, int scale_depth = 1){
     )*1.0;
 
     while(scale_depth--){
-        a_float = a_float / (1 << FXPSCALE);
+        a_float = a_float / (1ULL << FXPSCALE);
     }
 
     return a_float;
@@ -208,7 +208,7 @@ float format_EMP_IntFp(IntFp a_IntFp, int scale_depth){
 int64_t* convert_reals_to_fixed_point_rep(int sz, float* reals){
     int64_t* fixed_point_integers = new int64_t[sz];
     for(int i = 0; i < sz; i++){
-        fixed_point_integers[i] = reals[i]*(1 << FXPSCALE); 
+        fixed_point_integers[i] = reals[i]*(1ULL << FXPSCALE); 
     }
     return fixed_point_integers;
 }
@@ -225,7 +225,7 @@ Integer* convert_fixed_point_to_emp_Integers(int sz, int64_t* fixed_point_intege
 IntFp* convert_fixed_point_to_field_rep(int sz, int64_t* fixed_point_integers, int party = PUBLIC){
     IntFp* field_elements = new IntFp[sz];
     for(int i = 0; i < sz; i++){
-        uint64_t ring_rep = fixed_point_integers[i] > 0 ? fixed_point_integers[i] : PR + fixed_point_integers[i];
+        uint64_t ring_rep = (fixed_point_integers[i] > 0 ? fixed_point_integers[i] : PR + fixed_point_integers[i]);
         field_elements[i] = IntFp(ring_rep, party);
     }
     return field_elements;

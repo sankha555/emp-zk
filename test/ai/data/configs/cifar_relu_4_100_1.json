@@ -22,8 +22,8 @@
         ["OUTPUT", 10, 10, -1]
     ],
     "epsilon": 0.008,
-    "input_min": -2.1,
-    "input_max": 2.1,
+    "input_min": -2.2,
+    "input_max": 2.2,
     "do_float": 2,
-    "FXPSCALE": 21
+    "FXPSCALE": 20
 }

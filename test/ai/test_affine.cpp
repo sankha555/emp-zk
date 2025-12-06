@@ -46,7 +46,7 @@ void test_affine(BoolIO<NetIO> *ios[threads], int party){
             int ia;
 		    prg.random_data(&ia, 4);
 		    W[i*(sz+1) + j] = (float)(ia) / 1000000000.0;
-            W_int[i*(sz+1) + j] = W[i*(sz+1) + j] * (1 << FXPSCALE);
+            W_int[i*(sz+1) + j] = W[i*(sz+1) + j] * (1ULL << FXPSCALE);
             W_Integer[i*(sz+1) + j] = Integer(FXPBW, W_int[i*(sz+1) + j] > 0 ? W_int[i*(sz+1) + j] : PR + W_int[i*(sz+1) + j], PUBLIC);
             W_IntFp[i*(sz+1) + j] = IntFp(W_Integer[i*(sz+1) + j].reveal<uint64_t>(), PUBLIC);
         }
@@ -54,12 +54,12 @@ void test_affine(BoolIO<NetIO> *ios[threads], int party){
         int ib;
 		prg.random_data(&ib, 4);
         x[i] = (float)(ib) / 1000000000.0;
-        x_int[i] = x[i] * (1 << FXPSCALE);
+        x_int[i] = x[i] * (1ULL << FXPSCALE);
         x_Integer[i] = Integer(FXPBW, x_int[i] > 0 ? x_int[i] : PR + x_int[i], PUBLIC);
         x_IntFp[i] = IntFp(x_Integer[i].reveal<uint64_t>(), PUBLIC);
     }
     x[sz] = 1;
-    x_int[sz] = x[sz] * (1 << FXPSCALE);
+    x_int[sz] = x[sz] * (1ULL << FXPSCALE);
     x_Integer[sz] = Integer(FXPBW, x_int[sz], PUBLIC);
     x_IntFp[sz] = IntFp(x_Integer[sz].reveal<uint64_t>(), PUBLIC);
 
@@ -73,7 +73,7 @@ void test_affine(BoolIO<NetIO> *ios[threads], int party){
     cout << "AFFINE [FXP CLR]:\n";
     affine_layer(sz, sz, W_int, x_int, y_int);
     for(int i = 0; i < sz; i++){
-        cout << (y_int[i]*1.0 / (1 << FXPSCALE))/(1 << FXPSCALE) << " ";
+        cout << (y_int[i]*1.0 / (1ULL << FXPSCALE))/(1ULL << FXPSCALE) << " ";
     }
     cout << "\n";
 
@@ -125,7 +125,7 @@ void test_affine_secure(BoolIO<NetIO> *ios[threads], int party){
     ZKgeneralTruncAny(party, &y, &y, 1, FXPSCALE);
     cout << y.reveal() << "\n";
 
-    IntFp z(PR - 8.483 * (1 << FXPSCALE), ALICE);
+    IntFp z(PR - 8.483 * (1ULL << FXPSCALE), ALICE);
     IntFp r = inner_product_bundle(1, &y, &z, party);
     ZKgeneralTruncAny(party, &r, &r, 1, FXPSCALE);
 

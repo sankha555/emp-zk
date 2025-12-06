@@ -162,11 +162,11 @@ vector<int> read_exp_specs(
 
 
 template <typename T>
-bool verify_example(VerifiableFeedForwardNeuralNetwork<T>* model, const char* input_file, int input_offset, float epsilon){
+std::pair<bool, bool> verify_example(VerifiableFeedForwardNeuralNetwork<T>* model, const char* input_file, int input_offset, float epsilon){
     model->reset();
     model->load_input(input_file, input_offset, epsilon);
-    bool verified = model->forward(true, true);
-    return verified;
+    auto result = model->forward(true, true);
+    return result;
 }   
 
 

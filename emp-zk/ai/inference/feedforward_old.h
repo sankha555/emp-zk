@@ -132,7 +132,7 @@
 //             input[i] = IntFp(prev_layer->output[i]);
 //         }
 //         if(type == AFFINE){
-//             input[input_size] = IntFp(1 << FXPSCALE);
+//             input[input_size] = IntFp(1ULL << FXPSCALE);
 //         }
         
 //         // forward pass

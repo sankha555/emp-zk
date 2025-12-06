@@ -17,7 +17,7 @@ Integer normalize(Integer x){
     if(pos.reveal<bool>()){
         norm_x = x >> FXPSCALE;
     } else {
-        Integer MASK(FXPBW, (1 << FXPSCALE)-1);  // 111...16-bits...11
+        Integer MASK(FXPBW, (1ULL << FXPSCALE)-1);  // 111...16-bits...11
         MASK = MASK << (FXPBW - FXPSCALE);       // 111...16-bits...110000...(61-16)-bits...00
         
         norm_x = x >> FXPSCALE;
