@@ -20,8 +20,8 @@ def get_onnx_parameters_as_arrays(onnx_model):
     return params
 
 
-model_path = "test/eran_models/cifar_conv_relu_small.onnx"
-output_path = "test/ai/data/parameters/cifar_conv_relu_small_1.txt"
+model_path = "test/eran_models/mnist_relu_3_50.onnx"
+output_path = "test/ai/data/parameters/mnist_relu_3_50_2.txt"
 
 model, is_conv = read_onnx_net(model_path)
 params = get_onnx_parameters_as_arrays(model)
@@ -35,18 +35,37 @@ for i in range(num_layers):
 
 with open(output_path, "w") as file:
     for name, array in params_array:
-        print("Shape:", array.shape)
+        if len(array.shape) == 4:   # Conv weights: (out_ch, in_ch, kH, kW)
+            out_ch, in_ch, kH, kW = array.shape
+
+            arr_str = ""
+            for oc in range(out_ch):
+                for ic in range(in_ch):
+                    for r in range(kH):
+                        for c in range(kW):
+                            arr_str += str(array[oc][ic][r][c]) + " "
+                        arr_str += "\n"
+
+            file.writelines(arr_str)
+
+        elif len(array.shape) == 2 and "weight" in name:
+            print("Shape:", array.shape)
         
-        arr_str = ""
-        if "weight" in name:
+            arr_str = ""
             m, n = array.shape
             for i in range(m):
                 for j in range(n):
                     arr_str = arr_str + str(array[i][j])
                     arr_str = arr_str + " " 
                 arr_str = arr_str + "\n"    
-            # print(arr_str)        
-        elif "bias" in name:
+            # print(arr_str)    
+            
+            file.writelines(arr_str)
+             
+
+        elif len(array.shape) == 1 and "bias" in name:
+            print("Shape:", array.shape)
+            
             m = array.shape[0]
             for i in array:
                 arr_str += str(i)
@@ -54,6 +73,28 @@ with open(output_path, "w") as file:
             # print(arr_str)
             arr_str += "\n"
         
-        file.writelines(arr_str)
+            file.writelines(arr_str)
+            
+        
+        # print("Shape:", array.shape)
+        
+        # arr_str = ""
+        # if "weight" in name:
+        #     m, n = array.shape
+        #     for i in range(m):
+        #         for j in range(n):
+        #             arr_str = arr_str + str(array[i][j])
+        #             arr_str = arr_str + " " 
+        #         arr_str = arr_str + "\n"    
+        #     # print(arr_str)        
+        # elif "bias" in name:
+        #     m = array.shape[0]
+        #     for i in array:
+        #         arr_str += str(i)
+        #         arr_str += " "
+        #     # print(arr_str)
+        #     arr_str += "\n"
+        
+        # file.writelines(arr_str)
         
         print("---------")

@@ -61,21 +61,21 @@ class Affine : public Layer<T> {
 
         assert((this->param != NULL && this->param->param_matrix != NULL) && "Parameters not initialized for AFFINE layer");
         
-        auto start = clock_start();
-        compute_lower_constraints();
-        compute_lower_bounds();
+        if(!ONLY_INFERENCE){
+            auto start = clock_start();
+            compute_lower_constraints();
+            compute_lower_bounds();
 
-        compute_upper_constraints();
-        compute_upper_bounds();
-        double tt = time_from(start);
-        this->time_for_fp += tt;
+            compute_upper_constraints();
+            compute_upper_bounds();
+            double tt = time_from(start);
+            this->time_for_fp += tt;
 
-        start = clock_start();
-        backsubstitute(input_layer);
-        tt = time_from(start);
-        this->time_for_bs += tt;
-    
-        // cout << "Layer " << this->layer_num << " done!\n";
+            start = clock_start();
+            backsubstitute(input_layer);
+            tt = time_from(start);
+            this->time_for_bs += tt;    
+        }
 
         if(do_inference){
             if constexpr (std::is_same<IntFp, T>::value && SECURE){
@@ -373,26 +373,28 @@ class Affine : public Layer<T> {
         }
         cout << "\n";
 
-        cout << "Lower Bounds:\n";
-        for(int i = 0; i < this->output_size; i++){
-            if constexpr (std::is_same<T, IntFp>::value){
-                cout << format_EMP_IntFp(this->lower_bounds[i], 1) << " ";
-            } else if constexpr (std::is_same<T, float>::value) {
-                cout << this->lower_bounds[i] << " ";
+        if(!ONLY_INFERENCE){
+            cout << "Lower Bounds:\n";
+            for(int i = 0; i < this->output_size; i++){
+                if constexpr (std::is_same<T, IntFp>::value){
+                    cout << format_EMP_IntFp(this->lower_bounds[i], 1) << " ";
+                } else if constexpr (std::is_same<T, float>::value) {
+                    cout << this->lower_bounds[i] << " ";
+                }
             }
-        }
-        cout << "\n";
-         
-        cout << "Upper Bounds:\n";
-        for(int i = 0; i < this->output_size; i++){
-            if constexpr (std::is_same<T, IntFp>::value){
-                cout << format_EMP_IntFp(this->upper_bounds[i], 1) << " ";
-            } else if constexpr (std::is_same<T, float>::value) {
-                cout << this->upper_bounds[i] << " ";
+            cout << "\n";
+            
+            cout << "Upper Bounds:\n";
+            for(int i = 0; i < this->output_size; i++){
+                if constexpr (std::is_same<T, IntFp>::value){
+                    cout << format_EMP_IntFp(this->upper_bounds[i], 1) << " ";
+                } else if constexpr (std::is_same<T, float>::value) {
+                    cout << this->upper_bounds[i] << " ";
+                }
             }
         }
 
-        if (print_expressions){
+        if (print_expressions && !ONLY_INFERENCE){
             cout << "\n";
 
             cout << "Lower Expression:\n";

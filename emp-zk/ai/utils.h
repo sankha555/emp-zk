@@ -29,6 +29,7 @@ uint64_t ZERO_COMP_CONSTANT = (PR+1)/2;
 uint64_t MINUS_ONE = (PR - 1);
 
 const bool SECURE = 1; // 0 = cleartext, 1 = zk
+bool ONLY_INFERENCE = 0;
 
 enum LAYER_TYPE{INPUT, AFFINE, CONV2D, RELU, OUTPUT};
 enum TEST_MODE{CLTFLOAT, CLTFXP, SECUREMODE};

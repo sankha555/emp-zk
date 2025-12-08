@@ -21,7 +21,7 @@ class Output : public Layer<T> {
 
     Output(int input_size, int output_size, int max_coeffs = 2, int party = PUBLIC) : Layer<T>(input_size, output_size, max_coeffs, party){
         if(input_size != output_size){
-            error("Input layer should have same input size and output size!\n");
+            error("Output layer should have same input size and output size!\n");
         }
 
         if(max_coeffs == -1){
@@ -48,11 +48,14 @@ class Output : public Layer<T> {
             this->input[i] = (prev_layer->output[i]);
         }
 
-        compute_lower_bounds();
-        compute_lower_constraints();
+        if(!ONLY_INFERENCE){
+            compute_lower_bounds();
+            compute_lower_constraints();
 
-        compute_upper_bounds();
-        compute_upper_constraints();
+            compute_upper_bounds();
+            compute_upper_constraints();
+        }
+        
 
         if(do_inference){
             for(int i = 0; i < this->input_size; i++){
@@ -68,7 +71,10 @@ class Output : public Layer<T> {
         } else {
             this->correctly_classified = true;
             cout << "PREDICTED CLASS: " << prediction << "\n";
-            verify(ground_truth);
+
+            if(!ONLY_INFERENCE){
+                verify(ground_truth);
+            }
         }    
     }
 
@@ -304,29 +310,31 @@ class Output : public Layer<T> {
         }
         cout << "\n";
 
-
-        cout << "Lower Bounds:\n";
-        for(int i = 0; i < this->output_size; i++){
-            if constexpr (std::is_same<T, IntFp>::value){
-                cout << format_EMP_IntFp(this->lower_bounds[i], 1) << " ";
-            } else if constexpr (std::is_same<T, float>::value) {
-                cout << this->lower_bounds[i] << " ";
+        if(!ONLY_INFERENCE){
+            cout << "Lower Bounds:\n";
+            for(int i = 0; i < this->output_size; i++){
+                if constexpr (std::is_same<T, IntFp>::value){
+                    cout << format_EMP_IntFp(this->lower_bounds[i], 1) << " ";
+                } else if constexpr (std::is_same<T, float>::value) {
+                    cout << this->lower_bounds[i] << " ";
+                }
             }
-        }
-        cout << "\n";
-         
-        cout << "Upper Bounds:\n";
-        for(int i = 0; i < this->output_size; i++){
-            if constexpr (std::is_same<T, IntFp>::value){
-                cout << format_EMP_IntFp(this->upper_bounds[i], 1) << " ";
-            } else if constexpr (std::is_same<T, float>::value) {
-                cout << this->upper_bounds[i] << " ";
+            cout << "\n";
+            
+            cout << "Upper Bounds:\n";
+            for(int i = 0; i < this->output_size; i++){
+                if constexpr (std::is_same<T, IntFp>::value){
+                    cout << format_EMP_IntFp(this->upper_bounds[i], 1) << " ";
+                } else if constexpr (std::is_same<T, float>::value) {
+                    cout << this->upper_bounds[i] << " ";
+                }
             }
-        }
-        cout << "\n";
+            cout << "\n";
 
-        cout << "Verified: " << (this->verified ? "YES" : "NO");
-        cout << "\n\n";
+            cout << "Verified: " << (this->verified ? "YES" : "NO");
+            cout << "\n\n";
+        }
+        
     }
 };
 

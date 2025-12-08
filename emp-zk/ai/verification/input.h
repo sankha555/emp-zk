@@ -43,11 +43,13 @@ class Input : public Layer<T> {
     void forward(Layer<T>* input_layer, Layer<T>* prev_layer, bool do_inference = true){
         assert(prev_layer == NULL && "Input layer should not have any input from a previous layer!\n");
 
-        compute_lower_bounds();
-        compute_lower_constraints();
+        if(!ONLY_INFERENCE){
+            compute_lower_bounds();
+            compute_lower_constraints();
 
-        compute_upper_bounds();
-        compute_upper_constraints();
+            compute_upper_bounds();
+            compute_upper_constraints();
+        }
 
         this->prev_layer = NULL;
     }

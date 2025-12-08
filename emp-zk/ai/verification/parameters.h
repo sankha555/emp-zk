@@ -133,7 +133,7 @@ class Kernel2D {
         this->h = h;
         this->w = w;
         this->party = party;
-        this->filter_matrix = new T[out_c * in_c * h * w];
+        this->filter_matrix = new T[out_c * in_c * h * w + out_c];
 
 
         this->params_per_out_channel = this->in_c * this->h * this->w;
@@ -141,6 +141,10 @@ class Kernel2D {
     }
 
     int num_parameters(){
+        return out_c * in_c * h * w + out_c;
+    }
+
+    int num_weights(){
         return out_c * in_c * h * w;
     }
 
@@ -165,18 +169,33 @@ class Kernel2D {
                             this->filter_matrix[
                                 q * params_per_out_channel +
                                 p * params_per_in_channel +
-                                i * this->h +
+                                i * this->w +
                                 j
                             ] = temp_weights[
                                 q * params_per_out_channel +
                                 p * params_per_in_channel +
-                                i * this->h +
+                                i * this->w +
                                 j
                             ];
+
+                            // cout << format_EMP_IntFp(this->filter_matrix[
+                            //     q * params_per_out_channel +
+                            //     p * params_per_in_channel +
+                            //     i * this->w +
+                            //     j
+                            // ], 1) << " ";
                         }
+                        // cout << "\n";
                     }
                 }
             }
+
+            for(int q = 0; q < this->out_c; q++){
+                this->filter_matrix[this->out_c * this->params_per_out_channel + q] = temp_weights[this->out_c * this->params_per_out_channel + q];
+                // cout << format_EMP_IntFp(this->filter_matrix[this->out_c * this->params_per_out_channel + q], 1) << " ";
+            }
+            // cout << "\n";
+
 
             delete[] temp_weights;
 
@@ -193,21 +212,30 @@ class Kernel2D {
                             this->filter_matrix[
                                 q * params_per_out_channel +
                                 p * params_per_in_channel +
-                                i * this->h +
+                                i * this->w +
                                 j
                             ] = raw_weights[
                                 q * params_per_out_channel +
                                 p * params_per_in_channel +
-                                i * this->h +
+                                i * this->w +
                                 j
                             ];
                         }
                     }
                 }
             }
+
+            for(int q = 0; q < this->out_c; q++){
+                this->filter_matrix[this->out_c * this->params_per_out_channel + q] = raw_weights[this->out_c * this->params_per_out_channel + q];
+            }
         }
 
         delete[] raw_weights;
+    }
+
+
+    T* get_flattened_weights(int q){
+        return this->filter_matrix + q * this->params_per_out_channel;
     }
 
 

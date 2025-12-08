@@ -63,6 +63,9 @@ class VerifiableFeedForwardNeuralNetwork {
             if(curr_layer->type == AFFINE){
                 ((Affine<T>*) curr_layer)->param->read_weights_and_biases(param_file_path, layer_offset);
                 layer_offset += ((Affine<T>*) curr_layer)->param->num_parameters();
+            } else if(curr_layer->type == CONV2D){
+                ((Conv2D<T>*) curr_layer)->kernel->read_filters(param_file_path, layer_offset);
+                layer_offset += ((Conv2D<T>*) curr_layer)->kernel->num_parameters();
             }
         }
     }

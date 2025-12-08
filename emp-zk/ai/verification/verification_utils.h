@@ -19,51 +19,91 @@ using json = nlohmann::json;
 
 
 enum SPEC_LABELS{
-    LAYER_TYPE_INDEX,
-    INPUT_SIZE_INDEX,
-    OUTPUT_SIZE_INDEX,
-    MAX_COEFFS_INDEX,
+    LAYER_TYPE_INDEX = 0,
+    INPUT_SIZE_INDEX = 1,
+    OUTPUT_SIZE_INDEX = 2,
+    MAX_COEFFS_INDEX = 3,
+
+    INPUT_CHANNELS = 1,
+    OUTPUT_CHANNELS = 2,
+    IMAGE_H = 3,
+    IMAGE_W = 4,
+    KERNEL_H = 5,
+    KERNEL_W = 6,
+    STRIDE_H = 7,
+    STRIDE_W = 8,
+    PAD_H = 9,
+    PAD_W = 10,
+    CONV_MAX_COEFFS_INDEX = 11
 };
 
 template <typename T>
 VerifiableFeedForwardNeuralNetwork<T>* create_model(int num_layers, int* layer_specs, int party){
     Layer<T>** layers = new Layer<T>*[num_layers];
+    int specs = 0;
+
     for(int i = 0; i < num_layers; i++){
-        switch (layer_specs[i*(SPEC_LABELS::MAX_COEFFS_INDEX+1) + LAYER_TYPE_INDEX]){
+        switch (layer_specs[specs + LAYER_TYPE_INDEX]){
             case LAYER_TYPE::INPUT:
                 layers[i] = new Input<T>(
-                    layer_specs[i*(SPEC_LABELS::MAX_COEFFS_INDEX+1) + INPUT_SIZE_INDEX],
-                    layer_specs[i*(SPEC_LABELS::MAX_COEFFS_INDEX+1) + OUTPUT_SIZE_INDEX],
-                    layer_specs[i*(SPEC_LABELS::MAX_COEFFS_INDEX+1) + MAX_COEFFS_INDEX],
+                    layer_specs[specs + INPUT_SIZE_INDEX],
+                    layer_specs[specs + OUTPUT_SIZE_INDEX],
+                    layer_specs[specs + MAX_COEFFS_INDEX],
                     party
                 );
+                specs += 4;
                 break;
 
             case LAYER_TYPE::AFFINE:
                 layers[i] = new Affine<T>(
-                    layer_specs[i*(SPEC_LABELS::MAX_COEFFS_INDEX+1) + INPUT_SIZE_INDEX],
-                    layer_specs[i*(SPEC_LABELS::MAX_COEFFS_INDEX+1) + OUTPUT_SIZE_INDEX],
-                    layer_specs[i*(SPEC_LABELS::MAX_COEFFS_INDEX+1) + MAX_COEFFS_INDEX],
+                    layer_specs[specs + INPUT_SIZE_INDEX],
+                    layer_specs[specs + OUTPUT_SIZE_INDEX],
+                    layer_specs[specs + MAX_COEFFS_INDEX],
                     party
                 );
+                specs += 4;
+
+                break;
+
+            case LAYER_TYPE::CONV2D:
+                layers[i] = new Conv2D<T>(
+                    layer_specs[specs + INPUT_CHANNELS],
+                    layer_specs[specs + OUTPUT_CHANNELS],
+                    layer_specs[specs + IMAGE_H],
+                    layer_specs[specs + IMAGE_W],
+                    layer_specs[specs + KERNEL_H],
+                    layer_specs[specs + KERNEL_W],
+                    layer_specs[specs + STRIDE_H],
+                    layer_specs[specs + STRIDE_W],
+                    layer_specs[specs + PAD_H],
+                    layer_specs[specs + PAD_W],
+                    layer_specs[specs + CONV_MAX_COEFFS_INDEX],
+                    party
+                );
+                specs += 12;
+
                 break;
 
             case LAYER_TYPE::RELU:
                 layers[i] = new ReLU<T>(
-                    layer_specs[i*(SPEC_LABELS::MAX_COEFFS_INDEX+1) + INPUT_SIZE_INDEX],
-                    layer_specs[i*(SPEC_LABELS::MAX_COEFFS_INDEX+1) + OUTPUT_SIZE_INDEX],
-                    layer_specs[i*(SPEC_LABELS::MAX_COEFFS_INDEX+1) + MAX_COEFFS_INDEX],
+                    layer_specs[specs + INPUT_SIZE_INDEX],
+                    layer_specs[specs + OUTPUT_SIZE_INDEX],
+                    layer_specs[specs + MAX_COEFFS_INDEX],
                     party
                 );
+                specs += 4;
+
                 break;
 
             case LAYER_TYPE::OUTPUT:
                 layers[i] = new Output<T>(
-                    layer_specs[i*(SPEC_LABELS::MAX_COEFFS_INDEX+1) + INPUT_SIZE_INDEX],
-                    layer_specs[i*(SPEC_LABELS::MAX_COEFFS_INDEX+1) + OUTPUT_SIZE_INDEX],
-                    layer_specs[i*(SPEC_LABELS::MAX_COEFFS_INDEX+1) + MAX_COEFFS_INDEX],
+                    layer_specs[specs + INPUT_SIZE_INDEX],
+                    layer_specs[specs + OUTPUT_SIZE_INDEX],
+                    layer_specs[specs + MAX_COEFFS_INDEX],
                     party
                 );
+                specs += 4;
+
                 break;
 
             default:
@@ -80,6 +120,7 @@ LAYER_TYPE stringToLayerType(const std::string& type) {
     if (type == "AFFINE") return AFFINE;
     if (type == "RELU") return RELU;
     if (type == "OUTPUT") return OUTPUT;
+    if (type == "CONV2D") return CONV2D;
     throw std::runtime_error("Unknown layer type: " + type);
 }
 
@@ -117,25 +158,36 @@ vector<int> read_exp_specs(
     int num_neurons = config["num_neurons"];
     std::vector<int> layer_specs;
 
+    int num_layers = 0;
     for (const auto& layer : config["layers"]) {
         std::string type = layer[0];
         layer_specs.push_back(stringToLayerType(type));
         
-        // Handle input_size
-        if (layer[1].is_string() && layer[1] == "num_neurons") {
-            layer_specs.push_back(num_neurons);
+        if(!strcmp(type.c_str(), "CONV2D")){
+            int num_specs_in_conv = 12;
+            for(int i = 1; i < num_specs_in_conv; i++){
+                layer_specs.push_back(layer[i]);
+            }
+
         } else {
-            layer_specs.push_back(layer[1]);
+            // Handle input_size
+            if (layer[1].is_string() && layer[1] == "num_neurons") {
+                layer_specs.push_back(num_neurons);
+            } else {
+                layer_specs.push_back(layer[1]);
+            }
+            
+            // Handle output_size
+            if (layer[2].is_string() && layer[2] == "num_neurons") {
+                layer_specs.push_back(num_neurons);
+            } else {
+                layer_specs.push_back(layer[2]);
+            }
+            
+            layer_specs.push_back(layer[3]);
         }
         
-        // Handle output_size
-        if (layer[2].is_string() && layer[2] == "num_neurons") {
-            layer_specs.push_back(num_neurons);
-        } else {
-            layer_specs.push_back(layer[2]);
-        }
-        
-        layer_specs.push_back(layer[3]);
+        num_layers++;
     }
 
     *epsilon = (float) config["epsilon"];
@@ -156,6 +208,8 @@ vector<int> read_exp_specs(
     FXPSCALE = (int) config["FXPSCALE"];
     INPUT_MIN = (float) config["input_min"];
     INPUT_MAX = (float) config["input_max"];
+
+    layer_specs.push_back(num_layers);
 
     return layer_specs;
 }

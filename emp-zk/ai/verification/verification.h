@@ -5,6 +5,7 @@
 #include <emp-zk/ai/verification/input.h>
 #include <emp-zk/ai/verification/parameters.h>
 #include <emp-zk/ai/verification/affine.h>
+#include <emp-zk/ai/verification/conv2d.h>
 #include <emp-zk/ai/verification/relu.h>
 #include <emp-zk/ai/verification/output.h>
 #include <emp-zk/ai/verification/feedforward.h>
@@ -13,5 +14,6 @@
 #include <emp-zk/ai/verification/verification_utils.h>
 
 #include <omp.h>
+#include <iomanip>
 
 #endif
