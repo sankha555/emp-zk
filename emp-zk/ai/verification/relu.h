@@ -70,7 +70,7 @@ class ReLU : public Layer<T> {
             }
         }
 
-        this->describe(false, false);
+        // this->describe(false, false);
     }
 
     void compute_lower_bounds(){
