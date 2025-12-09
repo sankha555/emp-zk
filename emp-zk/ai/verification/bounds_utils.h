@@ -616,13 +616,15 @@ void update_upper_constraints_with_bsed_affine(Layer<T>* current_layer, Layer<T>
 
 template <typename T>
 void cleartext_update_lower_bounds_using_prev_layers(Layer<T>* current_layer, Layer<T>* prev_layer){
-    assert(current_layer->max_coeffs == prev_layer->output_size + 1 && "Current layer's no. of coeffs should match (prev. layer's num neurons + 1).");
+    if(current_layer->type == LAYER_TYPE::AFFINE){
+        assert(current_layer->max_coeffs == prev_layer->output_size + 1 && "Affine layer's no. of coeffs should match (prev. layer's num neurons + 1).");
+    } 
     auto start = clock_start();
 
     // update lower bounds
     for(int i = 0; i < current_layer->output_size; i++){
         T* current_lower_constraints = current_layer->backsubstituted_lower_constraints + (i*current_layer->max_coeffs);
-        T* prev_layer_bounds_to_mult = new T[current_layer->max_coeffs];     
+        T* prev_layer_bounds_to_mult = new T[current_layer->max_coeffs];   
 
         for(int j = 0; j < prev_layer->output_size; j++){
             if(greater_eq_zero<T>((T) current_lower_constraints[j], false)){

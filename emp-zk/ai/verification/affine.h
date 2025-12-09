@@ -23,6 +23,8 @@ class Affine : public Layer<T> {
 
     ParametersVerification<T>* param;
     
+    int* pred_neuron_ids;
+    
     Affine(int input_size, int output_size, int max_coeffs = -1, int party = PUBLIC) : Layer<T>(input_size, output_size, max_coeffs, party){
         if(max_coeffs == -1){
             max_coeffs = this->input_size+1;
@@ -42,6 +44,14 @@ class Affine : public Layer<T> {
 
         this->backsubstituted_lower_constraints= new T[output_size*this->max_coeffs];
         this->backsubstituted_upper_constraints= new T[output_size*this->max_coeffs];
+    
+        this->pred_neuron_ids = new int[this->output_size * this->max_coeffs];
+        for(int i = 0; i < this->output_size; i++){
+            for(int j = 0; j < this->max_coeffs - 1; j++){
+                this->pred_neuron_ids[i*this->max_coeffs + j] = j;
+            }
+            this->pred_neuron_ids[(i+1)*this->max_coeffs - 1] = -1;
+        }
     }
 
     void forward(Layer<T>* input_layer, Layer<T>* prev_layer, bool do_inference = true){
