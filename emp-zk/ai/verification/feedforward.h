@@ -172,7 +172,7 @@ class VerifiableFeedForwardNeuralNetwork {
             // }
         }
 
-        layers[num_layers - 1]->describe(false, false);
+        // layers[num_layers - 1]->describe(false, false);
 
         return {classification_result, verification_result};
     }

@@ -47,6 +47,8 @@ void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
     num_examples_classified += (int) classified;
 
     cout << "EXAMPLE " << i+1 << " : " << (verified ? "YES" : "NO") << "\n";
+
+    model_float->describe(false, true);
   }
   cout << "Verified " << num_examples_verified << "/" << num_examples << " examples [ correctly classified = " << num_examples_classified << " ]\n";
 
@@ -98,6 +100,8 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
     } else {
       cout << (verified ? "YES" : "NO") << "\n";
     }
+
+    model_field->describe(false, true);
   }
   cout << "\n";
 

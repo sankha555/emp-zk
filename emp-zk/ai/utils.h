@@ -41,11 +41,15 @@ int CURR_DATASET = DATASETS::MNIST;
 float INPUT_MIN = -1e9;
 float INPUT_MAX = 1e9;
 
+time_point<high_resolution_clock> start_time;
+
 void init_verification(){
     FIELD_ZERO = IntFp(0, PUBLIC);
     FIELD_ONE = IntFp(1, PUBLIC);
     FIELD_SCALED_ONE = IntFp(1ULL << FXPSCALE, PUBLIC);
     FIELD_MINUS_ONE = IntFp(PR - 1, PUBLIC);
+
+    start_time = clock_start();
 }
 
 
@@ -55,6 +59,8 @@ std::string get_layer_type(LAYER_TYPE type){
             return "INPUT";
         case AFFINE:
             return "AFFINE";
+        case CONV2D:
+            return "CONV2D";
         case RELU:
             return "RELU";
         case OUTPUT:

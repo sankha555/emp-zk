@@ -4,7 +4,7 @@ set(NAME "emp-zk")
 
 SET(CMAKE_BUILD_TYPE "Debug")
 SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g2 -ggdb -fopenmp -O3 -march=native -ffast-math -w")
-SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall -g2 -ggdb -fopenmp -O3 -march=native -ffast-math -w")
+SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -Wall -g2 -ggdb -fopenmp -O3 -march=native -ffast-math -w")
 
 find_path(CMAKE_FOLDER NAMES cmake/emp-tool-config.cmake)
 include(${CMAKE_FOLDER}/cmake/emp-base.cmake)

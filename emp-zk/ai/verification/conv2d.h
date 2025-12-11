@@ -41,6 +41,7 @@ class Conv2D : public Layer<T> {
     T* pixel_buffer;
 
     int* pred_neuron_ids;
+    bool relu_seen = false;
 
     void set_output_image_sizes(){
         this->out_h = (int) (this->image_h + 2*this->pad_h - this->kernel_h)/this->stride_h + 1;
@@ -125,13 +126,14 @@ class Conv2D : public Layer<T> {
 
             // this->print_predecessor_ids();
 
+            backsubstitute(input_layer);
         }
 
         if(do_inference){
             inference();
         }
 
-        this->describe(false, false);
+        // this->describe(false, false);
     }
 
     void load_flattened_pixels(int y, int x){
@@ -274,7 +276,11 @@ class Conv2D : public Layer<T> {
                         z * this->out_h * this->out_w +
                         y * this->out_w +
                         x
-                    ] += bias;
+                    ] = this->output[
+                        z * this->out_h * this->out_w +
+                        y * this->out_w +
+                        x
+                    ] + bias;
                 }
             }
 
@@ -491,17 +497,18 @@ class Conv2D : public Layer<T> {
         
             Layer<T>* prev_layer = this->prev_layer;
             while(prev_layer != NULL){
-                update_lower_bounds_using_prev_layers(this, prev_layer);     
+                update_conv_lower_bounds_using_prev_layers(this, prev_layer);     
                 prev_layer = prev_layer->prev_layer;
             }
-            this->max_coeffs = this->input_size + 1;
+            this->max_coeffs = this->kernel->params_per_out_channel + 1;
+            this->relu_seen = false;
 
             prev_layer = this->prev_layer;
             while(prev_layer != NULL){
-                update_upper_bounds_using_prev_layers(this, prev_layer);        
+                update_conv_upper_bounds_using_prev_layers(this, prev_layer);        
                 prev_layer = prev_layer->prev_layer;
             }
-            this->max_coeffs = this->input_size + 1;
+            this->max_coeffs = this->kernel->params_per_out_channel + 1;
 
         } else {
             for(int i = 0; i < this->output_size * this->max_coeffs; i++){
@@ -511,7 +518,7 @@ class Conv2D : public Layer<T> {
         
             Layer<T>* prev_layer = this->prev_layer;
             while(prev_layer != NULL){
-                update_lower_bounds_using_prev_layers(this, prev_layer);
+                cleartext_update_conv_lower_bounds_using_prev_layers(this, prev_layer);
                 if(prev_layer->type == AFFINE){
                     prev_layer = input_layer;
                 } else {
@@ -522,7 +529,7 @@ class Conv2D : public Layer<T> {
 
             prev_layer = this->prev_layer;
             while(prev_layer != NULL){
-                update_upper_bounds_using_prev_layers(this, prev_layer);        
+                cleartext_update_conv_upper_bounds_using_prev_layers(this, prev_layer);        
                 if(prev_layer->type == AFFINE){
                     prev_layer = input_layer;
                 } else {
@@ -747,6 +754,43 @@ class Conv2D : public Layer<T> {
                 }
             }
             cout << "\n\n";
+
+
+
+            cout << "Lower Expression (" << this->layer_num << "):\n"; 
+
+            cout << this->out_h << " " << this->out_w << " " << this->out_channels << "\n";
+
+            int neurons = 0;
+            for(int y = 0; y < this->out_h; y++){
+                for(int x = 0; x < this->out_w; x++){  
+                    for(int z = 0; z < this->out_channels; z++){
+                        int o = z* this->out_h * this->out_w + y*this->out_w + x;
+                        cout << "N" << neurons++ << ": ";
+                        for(int i = 0; i < this->kernel_h; i++){
+                            for(int j = 0; j < this->kernel_w; j++){
+                                
+                                for(int k = 0; k < this->in_channels; k++){
+                                    T el = this->backsubstituted_lower_constraints[
+                                        o * this->max_coeffs +
+                                        k * this->kernel_h * this->kernel_w +
+                                        i * this->kernel_w +
+                                        j
+                                    ];
+
+                                    if constexpr (std::is_same<T, IntFp>::value){
+                                        cout << format_EMP_IntFp(el, 1) << " ";
+                                    } else if constexpr (std::is_same<T, float>::value) {
+                                        cout << el << " ";
+                                    }
+                                }
+                            }
+                        }
+                        cout << "\n";
+                    }
+                }
+            }
+            
         } 
         
 
