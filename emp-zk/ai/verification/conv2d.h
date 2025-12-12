@@ -43,6 +43,13 @@ class Conv2D : public Layer<T> {
     int* pred_neuron_ids;
     bool relu_seen = false;
 
+
+    // new semantics
+    vector<vector<int>>* predecessors;
+    vector<vector<T>>* backsubstituted_conv_lower_constraints;
+    vector<vector<T>>* backsubstituted_conv_upper_constraints;
+
+
     void set_output_image_sizes(){
         this->out_h = (int) (this->image_h + 2*this->pad_h - this->kernel_h)/this->stride_h + 1;
 
@@ -97,6 +104,11 @@ class Conv2D : public Layer<T> {
         this->backsubstituted_upper_constraints= new T[this->output_size*this->max_coeffs];
 
         
+        // new semantics
+        this->predecessors = new vector<vector<int>>(this->output_size);
+
+        this->backsubstituted_conv_lower_constraints = new vector<vector<T>>(this->output_size);
+        this->backsubstituted_conv_upper_constraints = new vector<vector<T>>(this->output_size);
     }
 
     void forward(Layer<T>* input_layer, Layer<T>* prev_layer, bool do_inference = true){
@@ -154,8 +166,21 @@ class Conv2D : public Layer<T> {
         }
     }
 
+
+    void reset_predecessors(){
+        for(int z = 0; z < this->out_channels; z++){
+            for(int y = 0; y < this->out_h; y++){
+                for(int x = 0; x < this->out_w; x++){
+                    int nid = z * this->out_h * this->out_w + y * this->out_w + x;
+                    load_predecessor_neurons(nid, stride_h * y, stride_w * x);
+                }
+            }
+        }
+    }
+
     void load_predecessor_neurons(int nid, int y, int x){
         int preds = 0;
+        (*this->predecessors)[nid].clear();
         for(int c = 0; c < this->in_channels; c++){
             for(int i = 0; i < this->kernel_h; i++){
                 for(int j = 0; j < this->kernel_w; j++){
@@ -167,9 +192,19 @@ class Conv2D : public Layer<T> {
                         (x + j);
 
                     preds++;
+
+
+                    (*this->predecessors)[nid].push_back(
+                        c * this->image_h * this->image_w +
+                        (y + i) * this->image_w +
+                        (x + j)
+                    );
                 }
             }
         }
+
+        // cerr << (*this->predecessors)[nid].size() << "\n";
+        assert((*this->predecessors)[nid].size() == (this->in_channels * this->kernel_h * this->kernel_w));
 
         // bias
         this->pred_neuron_ids[
@@ -494,6 +529,13 @@ class Conv2D : public Layer<T> {
                 this->backsubstituted_lower_constraints[i] = (this->lower_constraints[i]);
                 this->backsubstituted_upper_constraints[i] = (this->upper_constraints[i]);
             }
+
+            for(int i = 0; i < this->output_size; i++){
+                for(int j = 0; j < this->max_coeffs; j++){
+                    (*this->backsubstituted_conv_lower_constraints)[i].push_back(this->lower_constraints[i * this->max_coeffs + j]);
+                    (*this->backsubstituted_conv_upper_constraints)[i].push_back(this->upper_constraints[i * this->max_coeffs + j]);
+                }
+            }
         
             Layer<T>* prev_layer = this->prev_layer;
             while(prev_layer != NULL){
@@ -503,12 +545,17 @@ class Conv2D : public Layer<T> {
             this->max_coeffs = this->kernel->params_per_out_channel + 1;
             this->relu_seen = false;
 
+            cerr << "bs lower done\n";
+
+            this->reset_predecessors();
+
             prev_layer = this->prev_layer;
             while(prev_layer != NULL){
                 update_conv_upper_bounds_using_prev_layers(this, prev_layer);        
                 prev_layer = prev_layer->prev_layer;
             }
             this->max_coeffs = this->kernel->params_per_out_channel + 1;
+            this->reset_predecessors();
 
         } else {
             for(int i = 0; i < this->output_size * this->max_coeffs; i++){
@@ -578,6 +625,10 @@ class Conv2D : public Layer<T> {
 
         this->backsubstituted_lower_constraints= new T[this->output_size*this->max_coeffs];
         this->backsubstituted_upper_constraints= new T[this->output_size*this->max_coeffs];
+
+
+        this->backsubstituted_conv_lower_constraints = new vector<vector<T>>(this->output_size);
+        this->backsubstituted_conv_upper_constraints = new vector<vector<T>>(this->output_size);
     }
 
     void print_predecessor_ids(){
