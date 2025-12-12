@@ -539,19 +539,16 @@ class Conv2D : public Layer<T> {
         
             Layer<T>* prev_layer = this->prev_layer;
             while(prev_layer != NULL){
-                update_conv_lower_bounds_using_prev_layers(this, prev_layer);     
+                cleartext_update_conv_lower_bounds_using_prev_layers(this, prev_layer);     
                 prev_layer = prev_layer->prev_layer;
             }
             this->max_coeffs = this->kernel->params_per_out_channel + 1;
             this->relu_seen = false;
-
-            cerr << "bs lower done\n";
-
             this->reset_predecessors();
 
             prev_layer = this->prev_layer;
             while(prev_layer != NULL){
-                update_conv_upper_bounds_using_prev_layers(this, prev_layer);        
+                cleartext_update_conv_upper_bounds_using_prev_layers(this, prev_layer);        
                 prev_layer = prev_layer->prev_layer;
             }
             this->max_coeffs = this->kernel->params_per_out_channel + 1;
@@ -841,6 +838,34 @@ class Conv2D : public Layer<T> {
                     }
                 }
             }
+
+
+            cout << "\nNew Lower Expression (" << this->layer_num << "):\n"; 
+            if(1){
+                neurons = 0;
+                for(int y = 0; y < this->out_h; y++){
+                    for(int x = 0; x < this->out_w; x++){  
+                        for(int z = 0; z < this->out_channels; z++){
+                            int o = z* this->out_h * this->out_w + y*this->out_w + x;
+
+                            cout << "N" << neurons++ << ": ";
+
+                            for(int j = 0; j < (*this->backsubstituted_conv_lower_constraints)[o].size(); j++){
+                                T el = (*this->backsubstituted_conv_lower_constraints)[o][j];
+
+                                if constexpr (std::is_same<T, IntFp>::value){
+                                    cout << format_EMP_IntFp(el, 1) << " ";
+                                } else if constexpr (std::is_same<T, float>::value) {
+                                    cout << el << " ";
+                                }
+                            }
+
+                            cout << "\n";
+                                
+                        }
+                    }
+                }
+            }
             
         } 
         
@@ -872,15 +897,21 @@ class Conv2D : public Layer<T> {
 
         for(int i = 0; i < this->output_size; i++){
 
-            for(int j = 0; j < this->max_coeffs-1; j++){
+            int* it = (*this->predecessors)[i].data();
+            int* end = it + (*this->predecessors)[i].size();
+            int j = 0;
 
-                int j_th_predecessor = this->pred_neuron_ids[i * this->max_coeffs + j];
+            for(; it != end; it++){
+
+                int j_th_predecessor = *it;
 
                 if(greater_eq_zero<T>(this->lower_constraints[i*this->max_coeffs + j], false)){
                     prev_bounds[j] = prev_lbs[j_th_predecessor];
                 } else {
                     prev_bounds[j] = prev_ubs[j_th_predecessor];
                 }
+
+                j++;
             }
             prev_bounds[this->max_coeffs-1] = constant<T>(1);
 
@@ -903,7 +934,11 @@ class Conv2D : public Layer<T> {
 
         for(int i = 0; i < this->output_size; i++){
 
-            for(int j = 0; j < this->max_coeffs-1; j++){
+            int* it = (*this->predecessors)[i].data();
+            int* end = it + (*this->predecessors)[i].size();
+            int j = 0;
+
+            for(; it != end; it++){
 
                 int j_th_predecessor = this->pred_neuron_ids[i * this->max_coeffs + j];
 
@@ -912,6 +947,8 @@ class Conv2D : public Layer<T> {
                 } else {
                     prev_bounds[j] = prev_lbs[j_th_predecessor];
                 }
+
+                j++;
             }
             prev_bounds[this->max_coeffs-1] = constant<T>(1);
 
