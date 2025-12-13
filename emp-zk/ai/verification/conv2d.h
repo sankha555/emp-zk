@@ -539,7 +539,7 @@ class Conv2D : public Layer<T> {
         
             Layer<T>* prev_layer = this->prev_layer;
             while(prev_layer != NULL){
-                cleartext_update_conv_lower_bounds_using_prev_layers(this, prev_layer);     
+                update_conv_lower_bounds_using_prev_layers(this, prev_layer);     
                 prev_layer = prev_layer->prev_layer;
             }
             this->max_coeffs = this->kernel->params_per_out_channel + 1;
@@ -548,7 +548,7 @@ class Conv2D : public Layer<T> {
 
             prev_layer = this->prev_layer;
             while(prev_layer != NULL){
-                cleartext_update_conv_upper_bounds_using_prev_layers(this, prev_layer);        
+                update_conv_upper_bounds_using_prev_layers(this, prev_layer);        
                 prev_layer = prev_layer->prev_layer;
             }
             this->max_coeffs = this->kernel->params_per_out_channel + 1;
