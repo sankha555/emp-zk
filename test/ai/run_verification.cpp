@@ -109,7 +109,7 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
 
   bool cheated = finalize_zk_arith<BoolIO<NetIO>>();
   if(party == BOB){
-    cout << "\n" << (cheated ? "\033[31mVerfication failed!" : "\033[32mVerfication successful!") << "\033[0m\n";
+    cerr << "\n" << (cheated ? "\033[31mVerfication failed!" : "\033[32mVerfication successful!") << "\033[0m\n";
   }
 
   tt = time_from(start);

@@ -24,7 +24,6 @@ template <typename T>
 void update_conv_lower_bounds_using_prev_layers(Conv2D<T>* current_layer, Layer<T>* prev_layer){
 
     if constexpr (std::is_same<IntFp, T>::value && SECURE){
-        cerr << "SECURE\n";
         for(int i = 0; i < current_layer->output_size; i++){
 
             assert(
