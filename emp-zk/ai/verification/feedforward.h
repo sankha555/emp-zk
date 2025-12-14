@@ -178,6 +178,10 @@ class VerifiableFeedForwardNeuralNetwork {
     }
 
     void describe(bool print_parameters = true, bool print_expressions = false){
+        if(this->party == BOB){
+            return;
+        }
+        
         for(int i = 0; i < num_layers; i++){
             cout << "LAYER " << (i+1) << "\n";
             layers[i]->describe(print_parameters, print_expressions);

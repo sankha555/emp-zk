@@ -46,20 +46,20 @@ void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
     num_examples_verified += (int) verified;
     num_examples_classified += (int) classified;
 
-    cout << "EXAMPLE " << i+1 << " : " << (verified ? "YES" : "NO") << "\n";
+    if(party == ALICE)    cout << "EXAMPLE " << i+1 << " : " << (verified ? "YES" : "NO") << "\n";
 
-    model_float->describe(false, true);
+    // model_float->describe(false, false);
   }
-  cout << "Verified " << num_examples_verified << "/" << num_examples << " examples [ correctly classified = " << num_examples_classified << " ]\n";
+  if(party == ALICE)   cout << "Verified " << num_examples_verified << "/" << num_examples << " examples [ correctly classified = " << num_examples_classified << " ]\n";
 
   double tt = time_from(start);
-  cout << "\nAvg. time to verify: " << (tt/1000000)/num_examples << " s\n";
+  if(party == ALICE)   cout << "\nAvg. time to verify: " << (tt/1000000)/num_examples << " s\n";
 
   std::cout.rdbuf(original_buf);  
 
-  cout << "Float verification completed\n";
-  cout << "Verified " << num_examples_verified << "/" << num_examples << " examples [ correctly classified = " << num_examples_classified << " ]\n";
-  cout << "\n";
+  if(party == ALICE)   cout << "Float verification completed\n";
+  if(party == ALICE)   cout << "Verified " << num_examples_verified << "/" << num_examples << " examples [ correctly classified = " << num_examples_classified << " ]\n";
+  if(party == ALICE)   cout << "\n";
 }
 
 
@@ -96,16 +96,15 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
     tt = time_from(start);
 
     if(print_to_stdout){
-      cout << "\rVerified: " << num_examples_verified << "/" << (i+1) << " images [Avg. time = " << (tt/(i+1))/1e6 << " sec]" << std::flush;
+      if(party == ALICE)   cout << "\rVerified: " << num_examples_verified << "/" << (i+1) << " images [Avg. time = " << (tt/(i+1))/1e6 << " sec]" << std::flush;
     } else {
-      cout << (verified ? "YES" : "NO") << "\n";
+      if(party == ALICE)   cout << (verified ? "YES" : "NO") << "\n";
     }
 
-    model_field->describe(false, true);
+    // model_field->describe(false, true);
   }
-  cout << "\n";
 
-  cout << "Verified " << num_examples_verified << "/" << num_examples << " examples\n";
+  if(party == ALICE)   cout << "\nVerified " << num_examples_verified << "/" << num_examples << " examples\n";
 
   bool cheated = finalize_zk_arith<BoolIO<NetIO>>();
   if(party == BOB){
@@ -113,8 +112,8 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   }
 
   tt = time_from(start);
-  cout << "\nAvg. time to verify: " << (tt/1000000)/num_examples << " s\n";
-  cout << "Communication: " << ios[0]->counter/(1024.0 * 1024.0) << " MB\n";
+  if(party == ALICE)   cout << "\nAvg. time to verify: " << (tt/1000000)/num_examples << " s\n";
+  if(party == ALICE)   cout << "Communication: " << ios[0]->counter/(1024.0 * 1024.0) << " MB\n";
 
   if(!print_to_stdout) std::cout.rdbuf(original_buf2);
 }

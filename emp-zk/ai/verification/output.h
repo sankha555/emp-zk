@@ -155,7 +155,7 @@ class Output : public Layer<T> {
         } else {
 
             int max_logit_pos = 0;
-            int max_logit = this->output[max_logit_pos];
+            float max_logit = this->output[max_logit_pos];
             for(int i = 1; i < this->output_size; i++){
                 if(this->output[i] > max_logit){
                     max_logit_pos = i;
@@ -178,14 +178,8 @@ class Output : public Layer<T> {
     void verify(int prediction){
         this->verified = true;
         if constexpr (std::is_same<IntFp, T>::value){
-            Integer* integer_lbs = convert_field_rep_to_emp_Integer(this->output_size, this->lower_bounds);
-            Integer* integer_ubs = convert_field_rep_to_emp_Integer(this->output_size, this->upper_bounds);
-
             IntFp* lbs = this->lower_bounds;
             IntFp* ubs = this->upper_bounds;
-
-            Integer prediction_lb = integer_lbs[prediction];
-            Integer prediction_ub = integer_ubs[prediction];
 
             IntFp gt_lb = lbs[prediction];
             IntFp gt_ub = ubs[prediction];

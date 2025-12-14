@@ -63,7 +63,7 @@ def describe_gemm(node):
     print()
 
 
-model_path = "test/eran_models/cifar_conv_relu_small.onnx"
+model_path = "test/eran_models/cifar_conv_relu_med.onnx"
 
 model = onnx.load(model_path)
 graph = model.graph

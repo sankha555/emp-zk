@@ -100,8 +100,8 @@ class Conv2D : public Layer<T> {
         this->lower_constraints = new T[this->output_size*this->max_coeffs];
         this->upper_constraints = new T[this->output_size*this->max_coeffs];
 
-        this->backsubstituted_lower_constraints= new T[this->output_size*this->max_coeffs];
-        this->backsubstituted_upper_constraints= new T[this->output_size*this->max_coeffs];
+        // this->backsubstituted_lower_constraints= new T[this->output_size*this->max_coeffs];
+        // this->backsubstituted_upper_constraints= new T[this->output_size*this->max_coeffs];
 
         
         // new semantics
@@ -121,22 +121,13 @@ class Conv2D : public Layer<T> {
 
         if(!ONLY_INFERENCE){
             
-            for(int z = 0; z < this->out_channels; z++){
-                for(int y = 0; y < this->out_h; y++){
-                    for(int x = 0; x < this->out_w; x++){
-                        int nid = z * this->out_h * this->out_w + y * this->out_w + x;
-                        load_predecessor_neurons(nid, stride_h * y, stride_w * x);
-                    }
-                }
-            }
+            this->reset_predecessors();
 
             compute_lower_constraints();
             compute_upper_constraints();
 
             compute_lower_bounds();
             compute_upper_bounds();
-
-            // this->print_predecessor_ids();
 
             backsubstitute(input_layer);
         }
@@ -345,7 +336,6 @@ class Conv2D : public Layer<T> {
                 auto start = clock_start();
 
 
-                // cerr << "N" << i << "\n";
                 ZKcmpPositive(this->party, this->lower_constraints + i*this->max_coeffs, ZERO_COMP_CONSTANT, coeff_sign, this->max_coeffs - 1);
                 
                 for(int j = 0; j < this->max_coeffs - 1; j++){
@@ -525,10 +515,10 @@ class Conv2D : public Layer<T> {
         
         if(DO_DP_BS){
             // cout << "LAYER " << this->layer_num << "\n";
-            for(int i = 0; i < this->output_size * this->max_coeffs; i++){
-                this->backsubstituted_lower_constraints[i] = (this->lower_constraints[i]);
-                this->backsubstituted_upper_constraints[i] = (this->upper_constraints[i]);
-            }
+            // for(int i = 0; i < this->output_size * this->max_coeffs; i++){
+            //     this->backsubstituted_lower_constraints[i] = (this->lower_constraints[i]);
+            //     this->backsubstituted_upper_constraints[i] = (this->upper_constraints[i]);
+            // }
 
             for(int i = 0; i < this->output_size; i++){
                 for(int j = 0; j < this->max_coeffs; j++){
@@ -620,8 +610,8 @@ class Conv2D : public Layer<T> {
         this->lower_constraints = new T[this->output_size*this->max_coeffs];
         this->upper_constraints = new T[this->output_size*this->max_coeffs];
 
-        this->backsubstituted_lower_constraints= new T[this->output_size*this->max_coeffs];
-        this->backsubstituted_upper_constraints= new T[this->output_size*this->max_coeffs];
+        // this->backsubstituted_lower_constraints= new T[this->output_size*this->max_coeffs];
+        // this->backsubstituted_upper_constraints= new T[this->output_size*this->max_coeffs];
 
 
         this->backsubstituted_conv_lower_constraints = new vector<vector<T>>(this->output_size);
@@ -661,110 +651,69 @@ class Conv2D : public Layer<T> {
     void describe(bool print_parameters = true, bool print_expressions = false){
         cout << "Type: " << get_layer_type(this->type) << "\n";
 
+        std::cout << std::fixed << std::setprecision(4);
 
-        if (0){
-            std::cout << std::fixed << std::setprecision(4);
+        cout << "Inputs:\n";
+        
+        int in_c = ((Conv2D<T>*) this)->in_channels;
+        int in_h = ((Conv2D<T>*) this)->image_h;
+        int in_w = ((Conv2D<T>*) this)->image_w;
 
-            cout << "Inputs:\n";
-            
-            int in_c = ((Conv2D<T>*) this)->in_channels;
-            int in_h = ((Conv2D<T>*) this)->image_h;
-            int in_w = ((Conv2D<T>*) this)->image_w;
-
-            for(int k = 0; k < in_c; k++){
-                cout << "\tChannel " << k << ":\n";
-                for(int i = 0; i < in_h; i++){
-                    cout << "\tRow " << i << ": [";
-                    for(int j = 0; j < in_w; j++){
-                        T el = this->input[
-                            k * in_h * in_w +
-                            i * in_w +
-                            j
-                        ];
-                        
-                        if constexpr (std::is_same<T, IntFp>::value){
-                            cout << format_EMP_IntFp(el, 1);
-                        } else if constexpr (std::is_same<T, float>::value) {
-                            cout << el;
-                        }
-                        
-                        cout << (j == in_w-1 ? "" : ", ");
-                    } 
-                    cout << "]\n";
-                }
-                cout << "\n";
-            }
-
-            int out_c = ((Conv2D<T>*) this)->out_channels;
-            int out_h = ((Conv2D<T>*) this)->out_h;
-            int out_w = ((Conv2D<T>*) this)->out_w;
-
-            cout << "Outputs:\n";
-            for(int k = 0; k < out_c; k++){
-                cout << "\tChannel " << k << ":\n";
-                for(int i = 0; i < out_h; i++){
-                    cout << "\tRow " << i << ": [";
-                    for(int j = 0; j < out_w; j++){
-                        T el = this->output[
-                            k * out_h * out_w +
-                            i * out_w +
-                            j
-                        ];
-                        
-                        if constexpr (std::is_same<T, IntFp>::value){
-                            cout << format_EMP_IntFp(el, 1);
-                        } else if constexpr (std::is_same<T, float>::value) {
-                            cout << el;
-                        }
-                        
-                        cout << (j == out_w-1 ? "" : ", ");
-
-                    } 
-                    cout << "]\n";
-                }
-                cout << "\n";
-            }
-
-            std::cout.unsetf(std::ios::fixed);
-        } else if(0) {
-            cout << "Inputs:\n";
-
-            for(int i = 0; i < this->input_size; i++){
-                if constexpr (std::is_same<T, IntFp>::value){
-                    cout << format_EMP_IntFp(this->input[i], 1) << " ";
-                } else if constexpr (std::is_same<T, float>::value) {
-                    cout << this->input[i] << " ";
-                }
-            }
-            cout << "\n";
-            
-            cout << "Outputs:\n";
-
-            int t = 0;
-
-            for(int y = 0; y < this->out_h; y++){
-                for(int x = 0; x < this->out_w; x++){
-                    for(int z = 0; z < this->out_channels; z++){
-
-                        T el = this->output[
-                            z * this->out_h * this->out_w +
-                            y * this->out_w +
-                            x 
-                        ];
-
-                        if constexpr (std::is_same<T, IntFp>::value){
-                            cout << t << ": " << format_EMP_IntFp(el, 1) << "\n";
-                        } else if constexpr (std::is_same<T, float>::value) {
-                            cout << t << ": " << el << "\n";
-                        }
-
-                        t++;
+        for(int k = 0; k < in_c; k++){
+            cout << "\tChannel " << k << ":\n";
+            for(int i = 0; i < in_h; i++){
+                cout << "\tRow " << i << ": [";
+                for(int j = 0; j < in_w; j++){
+                    T el = this->input[
+                        k * in_h * in_w +
+                        i * in_w +
+                        j
+                    ];
+                    
+                    if constexpr (std::is_same<T, IntFp>::value){
+                        cout << format_EMP_IntFp(el, 1);
+                    } else if constexpr (std::is_same<T, float>::value) {
+                        cout << el;
                     }
                     
-                }
+                    cout << (j == in_w-1 ? "" : ", ");
+                } 
+                cout << "]\n";
             }
-
+            cout << "\n";
         }
+
+        int out_c = ((Conv2D<T>*) this)->out_channels;
+        int out_h = ((Conv2D<T>*) this)->out_h;
+        int out_w = ((Conv2D<T>*) this)->out_w;
+
+        cout << "Outputs:\n";
+        for(int k = 0; k < out_c; k++){
+            cout << "\tChannel " << k << ":\n";
+            for(int i = 0; i < out_h; i++){
+                cout << "\tRow " << i << ": [";
+                for(int j = 0; j < out_w; j++){
+                    T el = this->output[
+                        k * out_h * out_w +
+                        i * out_w +
+                        j
+                    ];
+                    
+                    if constexpr (std::is_same<T, IntFp>::value){
+                        cout << format_EMP_IntFp(el, 1);
+                    } else if constexpr (std::is_same<T, float>::value) {
+                        cout << el;
+                    }
+                    
+                    cout << (j == out_w-1 ? "" : ", ");
+
+                } 
+                cout << "]\n";
+            }
+            cout << "\n";
+        }
+
+    
 
         if(!ONLY_INFERENCE){
             cout << "Lower Bounds:\n";
@@ -804,82 +753,37 @@ class Conv2D : public Layer<T> {
             cout << "\n\n";
 
 
-
             cout << "Lower Expression (" << this->layer_num << "):\n"; 
-
-            cout << this->out_h << " " << this->out_w << " " << this->out_channels << "\n";
-
+            
             int neurons = 0;
             for(int y = 0; y < this->out_h; y++){
                 for(int x = 0; x < this->out_w; x++){  
                     for(int z = 0; z < this->out_channels; z++){
                         int o = z* this->out_h * this->out_w + y*this->out_w + x;
+
                         cout << "N" << neurons++ << ": ";
-                        for(int i = 0; i < this->kernel_h; i++){
-                            for(int j = 0; j < this->kernel_w; j++){
-                                
-                                for(int k = 0; k < this->in_channels; k++){
-                                    T el = this->backsubstituted_lower_constraints[
-                                        o * this->max_coeffs +
-                                        k * this->kernel_h * this->kernel_w +
-                                        i * this->kernel_w +
-                                        j
-                                    ];
 
-                                    if constexpr (std::is_same<T, IntFp>::value){
-                                        cout << format_EMP_IntFp(el, 1) << " ";
-                                    } else if constexpr (std::is_same<T, float>::value) {
-                                        cout << el << " ";
-                                    }
-                                }
+                        for(int j = 0; j < (*this->backsubstituted_conv_lower_constraints)[o].size(); j++){
+                            T el = (*this->backsubstituted_conv_lower_constraints)[o][j];
+
+                            if constexpr (std::is_same<T, IntFp>::value){
+                                cout << format_EMP_IntFp(el, 1) << " ";
+                            } else if constexpr (std::is_same<T, float>::value) {
+                                cout << el << " ";
                             }
                         }
+
                         cout << "\n";
-                    }
-                }
-            }
-
-
-            cout << "\nNew Lower Expression (" << this->layer_num << "):\n"; 
-            if(1){
-                neurons = 0;
-                for(int y = 0; y < this->out_h; y++){
-                    for(int x = 0; x < this->out_w; x++){  
-                        for(int z = 0; z < this->out_channels; z++){
-                            int o = z* this->out_h * this->out_w + y*this->out_w + x;
-
-                            cout << "N" << neurons++ << ": ";
-
-                            for(int j = 0; j < (*this->backsubstituted_conv_lower_constraints)[o].size(); j++){
-                                T el = (*this->backsubstituted_conv_lower_constraints)[o][j];
-
-                                if constexpr (std::is_same<T, IntFp>::value){
-                                    cout << format_EMP_IntFp(el, 1) << " ";
-                                } else if constexpr (std::is_same<T, float>::value) {
-                                    cout << el << " ";
-                                }
-                            }
-
-                            cout << "\n";
-                                
-                        }
+                            
                     }
                 }
             }
             
         } 
         
-
-        
-        // for(int i = 0; i < this->output_size; i++){
-        //     cout << i << ": ";
-        //     if constexpr (std::is_same<T, IntFp>::value){
-        //         cout << format_EMP_IntFp(this->output[i], 1) << "\n";
-        //     } else if constexpr (std::is_same<T, float>::value) {
-        //         cout << this->output[i] << "\n";
-        //     }
-        // }
         cout << "\n";
+
+        std::cout.unsetf(std::ios::fixed);
     }
 
 
