@@ -71,13 +71,13 @@ void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   if(party == ALICE){
     cout << "Correctly Classified Examples\n";
     for(auto e : correctly_classified_examples){
-      cout << e << " ";
+      cout << e << ", ";
     }
     cout << "\n\n";
 
     cout << "Verified Examples\n";
     for(auto e : verified_examples){
-      cout << e << " ";
+      cout << e << ", ";
     }
     cout << "\n\n";
   }
@@ -115,43 +115,75 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   set<int> verified_examples;
 
   auto start = clock_start();
-  for(int i = base_example; i < base_example + num_examples; i++){
-    auto result = verify_example<IntFp>(model_field, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon);
-    bool classified = result.first;
-    bool verified = result.second;
+  if(base_example == -1){
+    num_examples = test_examples.size();
+    for(int j : test_examples){
+      int i = j-1;
+      auto result = verify_example<IntFp>(model_field, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon);
+      bool classified = result.first;
+      bool verified = result.second;
 
-    if(classified){
-      correctly_classified_examples.insert(i+1);
+      if(classified){
+        correctly_classified_examples.insert(i+1);
+      }
+
+      if(verified){
+        verified_examples.insert(i+1);
+      }
+
+      num_examples_verified += (int) verified;
+      num_examples_classified += (int) classified;
+
+      tt = time_from(start);
+
+      if(print_to_stdout){
+        if(party == ALICE)   cout << "\rVerified: " << num_examples_verified << "/" << (i+1) << " images [Avg. time = " << (tt/(i+1))/1e6 << " sec]" << std::flush;
+      } else {
+        if(party == ALICE)   cout << (verified ? "YES" : "NO") << "\n";
+      }
+
+      // model_field->describe(false, true);
     }
+  } else {
+    for(int i = base_example; i < base_example + num_examples; i++){
+      auto result = verify_example<IntFp>(model_field, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon);
+      bool classified = result.first;
+      bool verified = result.second;
 
-    if(verified){
-      verified_examples.insert(i+1);
+      if(classified){
+        correctly_classified_examples.insert(i+1);
+      }
+
+      if(verified){
+        verified_examples.insert(i+1);
+      }
+
+      num_examples_verified += (int) verified;
+      num_examples_classified += (int) classified;
+
+      tt = time_from(start);
+
+      if(print_to_stdout){
+        if(party == ALICE)   cout << "\rVerified: " << num_examples_verified << "/" << (i+1) << " images [Avg. time = " << (tt/(i+1))/1e6 << " sec]" << std::flush;
+      } else {
+        if(party == ALICE)   cout << (verified ? "YES" : "NO") << "\n";
+      }
+
+      // model_field->describe(false, true);
     }
-
-    num_examples_verified += (int) verified;
-    num_examples_classified += (int) classified;
-
-    tt = time_from(start);
-
-    if(print_to_stdout){
-      if(party == ALICE)   cout << "\rVerified: " << num_examples_verified << "/" << (i+1) << " images [Avg. time = " << (tt/(i+1))/1e6 << " sec]" << std::flush;
-    } else {
-      if(party == ALICE)   cout << (verified ? "YES" : "NO") << "\n";
-    }
-
-    // model_field->describe(false, true);
   }
+  
 
   if(party == ALICE){
     cout << "Correctly Classified Examples\n";
     for(auto e : correctly_classified_examples){
-      cout << e << " ";
+      cout << e << ", ";
     }
     cout << "\n\n";
 
     cout << "Verified Examples\n";
     for(auto e : verified_examples){
-      cout << e << " ";
+      cout << e << ", ";
     }
     cout << "\n\n";
   }
@@ -163,7 +195,7 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
     cerr << "\n" << (cheated ? "\033[31mVerfication failed!" : "\033[32mVerfication successful!") << "\033[0m\n";
   }
 
-  tt = time_from(start);
+  tt = time_from(start); 
   if(party == ALICE)   cout << "\nAvg. time to verify: " << (tt/1000000)/num_examples << " s\n";
   if(party == ALICE)   cout << "Communication: " << ios[0]->counter/(1024.0 * 1024.0) << " MB\n";
 
