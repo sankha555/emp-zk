@@ -196,7 +196,8 @@ class Output : public Layer<T> {
                 diff[1] = gt_ub + ubs[i].negate();
                 ZKcmpPositive(this->party, diff, ZERO_COMP_CONSTANT, diff, 2);
 
-                flag = flag + diff[0] * diff[1];
+                // flag = flag + diff[0] * diff[1];
+                flag = flag + diff[0];
             }            
 
             this->verified = !((bool) flag.reveal());
@@ -230,8 +231,8 @@ class Output : public Layer<T> {
                 //     break;
                 // }
 
-                bool ub_in_interval = integer_ubs[i].geq(prediction_lb).reveal<bool>() 
-                                        && prediction_ub.geq(integer_ubs[i]).reveal<bool>();
+                bool ub_in_interval = integer_ubs[i].geq(prediction_lb).reveal<bool>(); 
+                                        //&& prediction_ub.geq(integer_ubs[i]).reveal<bool>();
                 if(ub_in_interval){
                     this->verified = false; 
                     break;
@@ -249,7 +250,7 @@ class Output : public Layer<T> {
                 //     break;
                 // }
 
-                bool ub_in_interval = (prediction_lb <= this->upper_bounds[i]) && (this->upper_bounds[i] <= prediction_ub);
+                bool ub_in_interval = (prediction_lb <= this->upper_bounds[i]); // && (this->upper_bounds[i] <= prediction_ub);
                 if(ub_in_interval){
                     this->verified = false; 
                     break;

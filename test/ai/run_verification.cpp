@@ -16,6 +16,8 @@ float epsilon;
 string model_name;
 bool print_to_stdout = false;
 
+vector<int> test_examples;
+
 string CONFIG_PATH_ROOT = "test/ai/data/configs/";
 string INPUTS_PATH = "";
 string PARAMETERS_PATH = "";
@@ -38,22 +40,47 @@ void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   VerifiableFeedForwardNeuralNetwork<float>* model_float = create_model<float>(num_layers, layer_specs, party);
   model_float->load_weights_and_biases(PARAMETERS_PATH.c_str());
 
+  set<int> correctly_classified_examples;
+  set<int> verified_examples;
+
   for(int i = base_example; i < base_example + num_examples; i++){
     auto result = verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon);
     bool classified = result.first;
     bool verified = result.second;
+
+    if(classified){
+      correctly_classified_examples.insert(i+1);
+    }
+
+    if(verified){
+      verified_examples.insert(i+1);
+    }
 
     num_examples_verified += (int) verified;
     num_examples_classified += (int) classified;
 
     if(party == ALICE)    cout << "EXAMPLE " << i+1 << " : " << (verified ? "YES" : "NO") << "\n";
 
-    // model_float->describe(false, false);
+    model_float->describe(false, false);
   }
   if(party == ALICE)   cout << "Verified " << num_examples_verified << "/" << num_examples << " examples [ correctly classified = " << num_examples_classified << " ]\n";
 
   double tt = time_from(start);
   if(party == ALICE)   cout << "\nAvg. time to verify: " << (tt/1000000)/num_examples << " s\n";
+
+  if(party == ALICE){
+    cout << "Correctly Classified Examples\n";
+    for(auto e : correctly_classified_examples){
+      cout << e << " ";
+    }
+    cout << "\n\n";
+
+    cout << "Verified Examples\n";
+    for(auto e : verified_examples){
+      cout << e << " ";
+    }
+    cout << "\n\n";
+  }
 
   std::cout.rdbuf(original_buf);  
 
@@ -83,12 +110,23 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
 
   int num_examples_verified = 0;
   int num_examples_classified = 0;
+  
+  set<int> correctly_classified_examples;
+  set<int> verified_examples;
 
   auto start = clock_start();
   for(int i = base_example; i < base_example + num_examples; i++){
     auto result = verify_example<IntFp>(model_field, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon);
     bool classified = result.first;
     bool verified = result.second;
+
+    if(classified){
+      correctly_classified_examples.insert(i+1);
+    }
+
+    if(verified){
+      verified_examples.insert(i+1);
+    }
 
     num_examples_verified += (int) verified;
     num_examples_classified += (int) classified;
@@ -102,6 +140,20 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
     }
 
     // model_field->describe(false, true);
+  }
+
+  if(party == ALICE){
+    cout << "Correctly Classified Examples\n";
+    for(auto e : correctly_classified_examples){
+      cout << e << " ";
+    }
+    cout << "\n\n";
+
+    cout << "Verified Examples\n";
+    for(auto e : verified_examples){
+      cout << e << " ";
+    }
+    cout << "\n\n";
   }
 
   if(party == ALICE)   cout << "\nVerified " << num_examples_verified << "/" << num_examples << " examples\n";
@@ -132,6 +184,7 @@ void test_verification(BoolIO<NetIO> *ios[threads], int party) {
     PARAMETERS_PATH,
     LOGS_PATH,
     &test_mode,
+    &test_examples,
     worker_id
   );
 

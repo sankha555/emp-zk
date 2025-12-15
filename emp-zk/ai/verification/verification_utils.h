@@ -131,6 +131,7 @@ vector<int> read_exp_specs(
     string &PARAMS_FILE_PATH,
     string &LOG_FILE_PATH,
     int* test_mode,
+    vector<int>* test_examples,
     int worker_id
 ){
     // Read JSON file
@@ -210,6 +211,13 @@ vector<int> read_exp_specs(
     INPUT_MAX = (float) config["input_max"];
 
     layer_specs.push_back(num_layers);
+
+    vector<int> examples = config["examples"];
+    if(examples.size() > 0){
+        for(int e : examples){
+            test_examples->push_back(e);
+        }
+    }
 
     return layer_specs;
 }

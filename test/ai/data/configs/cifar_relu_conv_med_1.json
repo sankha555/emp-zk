@@ -1,0 +1,25 @@
+{
+    "model_name": "cifar_relu_conv_med",
+    "num_neurons": 1000,
+    "layers": [
+        ["INPUT", 3072, 3072, -1],
+
+        ["CONV2D", 3, 16, 32, 32, 4, 4, 2, 2, 1, 1, -1],
+        ["RELU", 4096, 4096, -1],
+
+        ["CONV2D", 16, 32, 16, 16, 4, 4, 2, 2, 1, 1, -1],
+        ["RELU", 2048, 2048, -1],
+
+        ["AFFINE", 2048, 1000, -1],
+        ["RELU", 1000, 1000, -1],
+
+        ["AFFINE", 1000, 10, -1],
+        
+        ["OUTPUT", 10, 10, -1]
+    ],
+    "epsilon": 0.008,
+    "input_min": -2.2,
+    "input_max": 2.2,
+    "do_float": 0,
+    "FXPSCALE": 24
+}

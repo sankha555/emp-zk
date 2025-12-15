@@ -16,6 +16,8 @@ float epsilon;
 string model_name;
 bool print_to_stdout = false;
 
+vector<int> test_examples;
+
 string CONFIG_PATH_ROOT = "test/ai/data/configs/";
 string INPUTS_PATH = "";
 string PARAMETERS_PATH = "";
@@ -42,6 +44,8 @@ void float_inference(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_laye
     bool classified = result.first;
 
     num_examples_classified += (int) classified;
+
+    if(party == ALICE) model_float->describe(false, false);
   }
   cout << "Correctly classified = " << num_examples_classified << "\n";
 
@@ -121,6 +125,7 @@ void test_inference(BoolIO<NetIO> *ios[threads], int party) {
     PARAMETERS_PATH,
     LOGS_PATH,
     &test_mode,
+    &test_examples,
     worker_id
   );
 
