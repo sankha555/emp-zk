@@ -148,7 +148,12 @@ vector<int> read_exp_specs(
     string model_name = config["model_name"];
     if(model_name.compare(0, 5, "mnist") == 0){
         CURR_DATASET = DATASETS::MNIST;
-        INPUT_FILE_PATH = "test/ai/data/inputs/mnist_test_" + to_string(worker_id) + ".txt";
+        if(model_name.find("conv") != std::string::npos){
+            INPUT_FILE_PATH = "test/ai/data/inputs/mnist_conv_" + to_string(worker_id) + ".txt";
+            cerr << INPUT_FILE_PATH << "\n";
+        } else {
+            INPUT_FILE_PATH = "test/ai/data/inputs/mnist_test_" + to_string(worker_id) + ".txt";
+        }
 
     } else if(model_name.compare(0, 5, "cifar") == 0) {
         CURR_DATASET = DATASETS::CIFAR10;

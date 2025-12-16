@@ -61,7 +61,7 @@ void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
 
     if(party == ALICE)    cout << "EXAMPLE " << i+1 << " : " << (verified ? "YES" : "NO") << "\n";
 
-    // model_float->describe(false, false);
+    model_float->describe(false, false);
   }
   if(party == ALICE)   cout << "Verified " << num_examples_verified << "/" << num_examples << " examples [ correctly classified = " << num_examples_classified << " ]\n";
 
@@ -142,7 +142,7 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
         if(party == ALICE)   cout << (verified ? "YES" : "NO") << "\n";
       }
 
-      // model_field->describe(false, true);
+      model_field->describe(false, true);
     }
   } else {
     for(int i = base_example; i < base_example + num_examples; i++){
