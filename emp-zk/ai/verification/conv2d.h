@@ -143,15 +143,29 @@ class Conv2D : public Layer<T> {
         for(int c = 0; c < this->in_channels; c++){
             for(int i = 0; i < this->kernel_h; i++){
                 for(int j = 0; j < this->kernel_w; j++){
-                    this->pixel_buffer[
-                        c * this->kernel_h * this->kernel_w +
-                        i * this->kernel_w +
-                        j
-                    ] = this->input[
-                        c * this->image_h * this->image_w +
-                        (y + i) * this->image_w +
-                        (x + j)
-                    ];
+                    int input_y = y + i - this->pad_top;
+                    int input_x = x + j - this->pad_left;
+                    
+                    // Check if position is within bounds
+                    if(input_y >= 0 && input_y < this->image_h && input_x >= 0 && input_x < this->image_w){
+                        // Valid pixel - load from input
+                        this->pixel_buffer[
+                            c * this->kernel_h * this->kernel_w +
+                            i * this->kernel_w +
+                            j
+                        ] = this->input[
+                            c * this->image_h * this->image_w +
+                            input_y * this->image_w +
+                            input_x
+                        ];
+                    } else {
+                        // Out of bounds - use zero padding
+                        this->pixel_buffer[
+                            c * this->kernel_h * this->kernel_w +
+                            i * this->kernel_w +
+                            j
+                        ] = constant<T>(0);
+                    }
                 }
             }
         }
