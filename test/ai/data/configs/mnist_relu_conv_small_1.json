@@ -1,0 +1,26 @@
+{
+    "model_name": "mnist_relu_conv_small",
+    "num_neurons": 100,
+    "layers": [
+        ["INPUT", 784, 784, -1],
+
+        ["CONV2D", 1, 16, 28, 28, 4, 4, 2, 2, 0, 0, -1],
+        ["RELU", 2704, 2704, -1],
+
+        ["CONV2D", 16, 32, 13, 13, 4, 4, 2, 2, 0, 0, -1],
+        ["RELU", 800, 800, -1],
+
+        ["AFFINE", 800, 100, -1],
+        ["RELU", 100, 100, -1],
+
+        ["AFFINE", 100, 10, -1],
+        
+        ["OUTPUT", 10, 10, -1]
+    ],
+    "epsilon": 0.01,
+    "input_min": 0,
+    "input_max": 1,
+    "do_float": 0,
+    "FXPSCALE": 20,
+    "examples": []
+}
