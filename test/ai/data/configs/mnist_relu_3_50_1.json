@@ -14,6 +14,7 @@
     "epsilon": 0.01,
     "input_min": 0,
     "input_max": 1,
-    "do_float": 2,
-    "FXPSCALE": 20
+    "do_float": 0,
+    "FXPSCALE": 20,
+    "examples": []
 }

@@ -45,6 +45,8 @@ class ReLU : public Layer<T> {
             this->input[i] = T(prev_layer->output[i]);
         }
 
+        // this->describe(false, false);
+
         if(!ONLY_INFERENCE){
             auto start = clock_start();
             compute_lower_constraints();

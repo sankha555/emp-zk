@@ -20,7 +20,7 @@
     "epsilon": 0.0002,
     "input_min": -2.2,
     "input_max": 2.2,
-    "do_float": 1,
+    "do_float": 0,
     "FXPSCALE": 24,
     "examples": []
 }

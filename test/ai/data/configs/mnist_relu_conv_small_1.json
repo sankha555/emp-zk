@@ -17,10 +17,10 @@
         
         ["OUTPUT", 10, 10, -1]
     ],
-    "epsilon": 0.01,
-    "input_min": 0,
+    "epsilon": 0.1,
+    "input_min": -1,
     "input_max": 1,
-    "do_float": 0,
-    "FXPSCALE": 20,
+    "do_float": 2,
+    "FXPSCALE": 22,
     "examples": []
 }

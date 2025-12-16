@@ -28,8 +28,8 @@
         ["OUTPUT", 10, 10, -1]
     ],
     "epsilon": 0.0002,
-    "input_min": -1e9,
-    "input_max": 1e9,
+    "input_min": -2.2,
+    "input_max": 2.2,
     "do_float": 0,
     "FXPSCALE": 20,
     "examples": []
