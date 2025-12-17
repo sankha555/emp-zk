@@ -119,6 +119,10 @@ class Conv2D : public Layer<T> {
             this->input[i] = prev_layer->output[i];
         }
 
+        if(do_inference){
+            inference();
+        }
+
         if(!ONLY_INFERENCE){
             
             this->reset_predecessors();
@@ -130,10 +134,9 @@ class Conv2D : public Layer<T> {
             compute_upper_bounds();
 
             backsubstitute(input_layer);
-        }
 
-        if(do_inference){
-            inference();
+            this->describe(false, false);
+
         }
 
         // this->describe(false, false);
@@ -143,8 +146,8 @@ class Conv2D : public Layer<T> {
         for(int c = 0; c < this->in_channels; c++){
             for(int i = 0; i < this->kernel_h; i++){
                 for(int j = 0; j < this->kernel_w; j++){
-                    int input_y = y + i - this->pad_top;
-                    int input_x = x + j - this->pad_left;
+                    int input_y = y + i - this->pad_h;
+                    int input_x = x + j - this->pad_w;
                     
                     // Check if position is within bounds
                     if(input_y >= 0 && input_y < this->image_h && input_x >= 0 && input_x < this->image_w){
@@ -189,27 +192,46 @@ class Conv2D : public Layer<T> {
         for(int c = 0; c < this->in_channels; c++){
             for(int i = 0; i < this->kernel_h; i++){
                 for(int j = 0; j < this->kernel_w; j++){
-                    this->pred_neuron_ids[
-                        nid * this->max_coeffs
-                      + preds
-                    ] = c * this->image_h * this->image_w +
-                        (y + i) * this->image_w +
-                        (x + j);
+
+                    int input_y = y + i - this->pad_h;
+                    int input_x = x + j - this->pad_w;
+
+                    if(input_y >= 0 && input_y < this->image_h && input_x >= 0 && input_x < this->image_w){
+
+                        this->pred_neuron_ids[
+                            nid * this->max_coeffs
+                            + preds
+                        ] = c * this->image_h * this->image_w +
+                            input_y * this->image_w +
+                            input_x;
+
+                        (*this->predecessors)[nid].push_back(
+                            c * this->image_h * this->image_w +
+                            input_y * this->image_w +
+                            input_x
+                        );
+                    
+                    } else {
+
+                        this->pred_neuron_ids[
+                            nid * this->max_coeffs
+                            + preds
+                        ] = -1;
+
+                        (*this->predecessors)[nid].push_back(
+                            -1
+                        );
+
+                    }
 
                     preds++;
-
-
-                    (*this->predecessors)[nid].push_back(
-                        c * this->image_h * this->image_w +
-                        (y + i) * this->image_w +
-                        (x + j)
-                    );
+                    
                 }
             }
         }
 
-        // cerr << (*this->predecessors)[nid].size() << "\n";
-        assert((*this->predecessors)[nid].size() == (this->in_channels * this->kernel_h * this->kernel_w));
+        // cerr << (*this->predecessors)[nid].size() << " ";
+        // assert((*this->predecessors)[nid].size() == (this->in_channels * this->kernel_h * this->kernel_w));
 
         // bias
         this->pred_neuron_ids[
@@ -819,14 +841,22 @@ class Conv2D : public Layer<T> {
             int* end = it + (*this->predecessors)[i].size();
             int j = 0;
 
+            assert((*this->predecessors)[i].size() == this->max_coeffs - 1);
+
             for(; it != end; it++){
 
                 int j_th_predecessor = *it;
+                if(j_th_predecessor == -1){
 
-                if(greater_eq_zero<T>(this->lower_constraints[i*this->max_coeffs + j], false)){
-                    prev_bounds[j] = prev_lbs[j_th_predecessor];
-                } else {
-                    prev_bounds[j] = prev_ubs[j_th_predecessor];
+                    prev_bounds[j] = constant<T>(0);
+
+                } else {    
+                    if(greater_eq_zero<T>(this->lower_constraints[i*this->max_coeffs + j], false)){
+                        prev_bounds[j] = prev_lbs[j_th_predecessor];
+                    } else {
+                        prev_bounds[j] = prev_ubs[j_th_predecessor];
+                    }
+
                 }
 
                 j++;
@@ -856,14 +886,22 @@ class Conv2D : public Layer<T> {
             int* end = it + (*this->predecessors)[i].size();
             int j = 0;
 
+            assert((*this->predecessors)[i].size() == this->max_coeffs - 1);
+
             for(; it != end; it++){
 
-                int j_th_predecessor = this->pred_neuron_ids[i * this->max_coeffs + j];
+                int j_th_predecessor = *it;
+                if(j_th_predecessor == -1){
 
-                if(greater_eq_zero<T>(this->upper_constraints[i*this->max_coeffs + j], false)){
-                    prev_bounds[j] = prev_ubs[j_th_predecessor];
-                } else {
-                    prev_bounds[j] = prev_lbs[j_th_predecessor];
+                    prev_bounds[j] = constant<T>(0);
+
+                } else {    
+                    if(greater_eq_zero<T>(this->lower_constraints[i*this->max_coeffs + j], false)){
+                        prev_bounds[j] = prev_ubs[j_th_predecessor];
+                    } else {
+                        prev_bounds[j] = prev_lbs[j_th_predecessor];
+                    }
+
                 }
 
                 j++;
