@@ -169,7 +169,7 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
         if(party == ALICE)   cout << (verified ? "YES" : "NO") << "\n";
       }
 
-      model_field->describe(false, false);
+      // model_field->describe(false, false);
     }
   }
   
