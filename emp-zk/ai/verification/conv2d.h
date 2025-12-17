@@ -365,8 +365,16 @@ class Conv2D : public Layer<T> {
                 for(int j = 0; j < this->max_coeffs - 1; j++){
                     int j_th_predecessor = this->pred_neuron_ids[i * this->max_coeffs + j];
 
-                    prev_bounds[j] = prev_lbs[j_th_predecessor];
-                    prev_bounds[j + this->max_coeffs - 1] = prev_ubs[j_th_predecessor];
+                    if(j_th_predecessor == -1){
+
+                        prev_bounds[j] = FIELD_ZERO;
+                        prev_bounds[j + this->max_coeffs - 1] = FIELD_ZERO;
+
+                    } else { 
+
+                        prev_bounds[j] = prev_lbs[j_th_predecessor];
+                        prev_bounds[j + this->max_coeffs - 1] = prev_ubs[j_th_predecessor];
+                    }
                 }
 
                 auto start = clock_start();
@@ -425,9 +433,16 @@ class Conv2D : public Layer<T> {
 
                 for(int j = 0; j < this->max_coeffs - 1; j++){
                     int j_th_predecessor = this->pred_neuron_ids[i * this->max_coeffs + j];
+                    if(j_th_predecessor == -1){
 
-                    prev_bounds[j] = prev_ubs[j_th_predecessor];
-                    prev_bounds[j + this->max_coeffs - 1] = prev_lbs[j_th_predecessor];
+                        prev_bounds[j] = FIELD_ZERO;
+                        prev_bounds[j + this->max_coeffs - 1] = FIELD_ZERO;
+
+                    } else { 
+
+                        prev_bounds[j] = prev_ubs[j_th_predecessor];
+                        prev_bounds[j + this->max_coeffs - 1] = prev_lbs[j_th_predecessor];
+                    }
                 }
 
                 auto start = clock_start();

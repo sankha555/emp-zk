@@ -204,6 +204,10 @@ void update_lower_constraints_with_conv(Layer<T>* current_layer, Conv2D<T>* prev
                 for(int k = 0; k < num_preds_of_pred; k++){
                     int kth_pred_of_pred = preds_of_pred[k];              // a neuron id
 
+                    if(kth_pred_of_pred == -1){
+                        continue;
+                    }
+
                     new_backsubstituted_lower_constraints[
                         i * (prev_layer->input_size + 1) +
                         kth_pred_of_pred
@@ -586,6 +590,9 @@ void update_upper_constraints_with_conv(Layer<T>* current_layer, Conv2D<T>* prev
 
                 for(int k = 0; k < num_preds_of_pred; k++){
                     int kth_pred_of_pred = preds_of_pred[k];              // a neuron id
+                    if(kth_pred_of_pred == -1){
+                        continue;
+                    }
 
                     prev_coeffs_to_mult[0] = prev_layer->upper_constraints[j * prev_layer->max_coeffs + k] * coeff_sign[2*j+0];
                     prev_coeffs_to_mult[1] = prev_layer->lower_constraints[j * prev_layer->max_coeffs + k] * coeff_sign[2*j+1] ;
