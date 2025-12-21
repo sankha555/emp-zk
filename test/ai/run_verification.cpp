@@ -122,9 +122,8 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
 
   auto start = clock_start();
   if(base_example != -1){
-    test_examples = vector<int>(100);
-    std::iota(test_examples.begin(), test_examples.end(), 1);
-    num_examples = test_examples.size();
+    test_examples = vector<int>(num_examples);
+    std::iota(test_examples.begin(), test_examples.end(), base_example);
   }
   num_examples = test_examples.size();
   
@@ -133,6 +132,7 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
 
 
     verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
+    cerr << model_float->skip_map.size() << "\n";
     model_field->skip_map = model_float->skip_map;
     
     auto result = verify_example<IntFp>(model_field, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
@@ -158,7 +158,7 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
       if(party == ALICE)   cout << (verified ? "YES" : "NO") << "\n";
     }
 
-    model_field->describe(false, true);
+    // model_field->describe(false, true);
   }
 
 
