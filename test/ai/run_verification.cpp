@@ -34,7 +34,7 @@ void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   int num_examples_classified = 0;
 
   // float 
-  std::ofstream file(std::string(LOGS_PATH) + "_float_worker_" + std::to_string(port - 10000 + 1) + ".txt");
+  std::ofstream file(std::string(LOGS_PATH) + "_float_worker_" + std::to_string(port - 10000 + 1) + (DO_DP_BS ? ".txt" : "_opt.txt"));
   std::streambuf* original_buf = std::cout.rdbuf(file.rdbuf());
 
   VerifiableFeedForwardNeuralNetwork<float>* model_float = create_model<float>(num_layers, layer_specs, party);
@@ -63,6 +63,9 @@ void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
 
     model_float->describe(false, false);
   }
+
+  if(party == ALICE) model_float->savings_stats->print_stats();
+
   if(party == ALICE)   cout << "Verified " << num_examples_verified << "/" << num_examples << " examples [ correctly classified = " << num_examples_classified << " ]\n";
 
   double tt = time_from(start);
@@ -258,7 +261,11 @@ int main(int argc, char **argv) {
   }
 
   if(argc > 6){
-    print_to_stdout = (bool) atoi(argv[6]);
+    BS_WAIVER_FRACTION = (float) atof(argv[6]);
+  }
+
+  if(argc > 7){
+    print_to_stdout = (bool) atoi(argv[7]);
   }
 
   cout << "PARTY = " << party << "\n";

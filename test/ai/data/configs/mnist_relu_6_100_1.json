@@ -29,5 +29,11 @@
     "input_max": 1,
     "do_float": 0,
     "FXPSCALE": 20,
-    "examples": []
+    "examples": [],
+    "bs_waiver_thresholds": {
+        "6": -1,
+        "8": 0.3,
+        "10": 0.2,
+        "12": 0.3
+    }
 }

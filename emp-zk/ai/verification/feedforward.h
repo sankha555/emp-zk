@@ -13,6 +13,37 @@ using namespace emp;
 using namespace std;
 
 
+typedef struct stats {
+    int min_savings;
+    int min_example;
+    int max_savings;
+    int max_example;
+    int avg_savings;
+    int total_examples;
+
+    void new_example(int i, int savings){
+        if(savings < min_savings){
+            min_savings = savings;
+            min_example = i;
+        }
+
+        if(savings > max_savings){
+            max_savings = savings;
+            max_example = i;
+        }
+
+        avg_savings = avg_savings * total_examples + savings;
+        total_examples++;
+        avg_savings = avg_savings / total_examples;
+    }
+
+    void print_stats(){
+        cerr << "Avg. savings = " << avg_savings << " (Total " << total_examples << " examples)\n"; 
+        cerr << "Min. savings = " << min_savings << " (Example " << min_example << ")\n";
+        cerr << "Max. savings = " << max_savings << " (Example " << max_example << ")\n"; 
+    }
+} stats;
+
 template <typename T>
 class VerifiableFeedForwardNeuralNetwork {
     public:
@@ -21,6 +52,8 @@ class VerifiableFeedForwardNeuralNetwork {
     Layer<T>** layers;
     
     int num_inputs;
+
+    stats* savings_stats;
 
     VerifiableFeedForwardNeuralNetwork(int num_layers, Layer<T>** layers, int party = PUBLIC){
         this->num_layers = num_layers;
@@ -136,6 +169,7 @@ class VerifiableFeedForwardNeuralNetwork {
     }
     
     void reset(){
+        this->savings_stats = new stats();
         for(int i = 0; i < this->num_layers; i++){
             ((Layer<T>*) this->layers[i])->reset();
         }
@@ -146,31 +180,31 @@ class VerifiableFeedForwardNeuralNetwork {
         Layer<T>* prev_layer = nullptr;
         Layer<T>* input_layer = layers[0];
 
+        int total_neurons_saved = 0;
+        int total_neurons = 0;
+
+        int savings;
         for(int i = 0; i < num_layers; i++){
             layers[i]->layer_num = i+1;
             layers[i]->forward(input_layer, prev_layer, do_inference);
             prev_layer = layers[i];
+
+            if(layers[i]->type == AFFINE){
+                total_neurons_saved += ((Affine<T>*) layers[i])->neurons_saved;
+                int m = ((Affine<T>*) layers[i])->output_size;
+                total_neurons += m;
+
+                savings += ((Affine<T>*) layers[i])->neurons_saved * (i/2 * (m*m + m));
+                this->savings_stats->new_example(i+1, savings);
+            }
         }
+        // cerr << "Saved " << total_neurons_saved * 1.0/total_neurons << " neurons\n";
         
         bool verification_result;
         verification_result = ((Output<T>*) layers[this->num_layers-1])->verified;
 
         bool classification_result;
         classification_result = ((Output<T>*) layers[this->num_layers-1])->correctly_classified;
-
-
-        if(DO_DP_BS){
-            // for(int i = 0; i < num_layers; i++){
-            //     profiling(layers[i]);
-            // }
-        } else {
-            // if (!verification_result && do_backsubstitution) {
-            //     // perform backsubstitution
-            //     cout << "couldn't verify... performing backsubstitution....\n";
-            //     this->layers[this->num_layers - 1]->backsubstitute(this->layers[0]);
-            //     verification_result = ((Output<T>*) layers[this->num_layers-1])->verified;
-            // }
-        }
 
         // layers[num_layers - 1]->describe(false, false);
 

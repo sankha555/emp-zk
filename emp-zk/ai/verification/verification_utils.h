@@ -134,7 +134,7 @@ vector<int> read_exp_specs(
     vector<int>* test_examples,
     int worker_id
 ){
-    // Read JSON file
+
     std::ifstream file(config_file_path);
     if (!file.is_open()) {
         std::cerr << "Failed to open" << config_file_path << std::endl;
@@ -159,6 +159,9 @@ vector<int> read_exp_specs(
         CURR_DATASET = DATASETS::CIFAR10;
         INPUT_FILE_PATH = "test/ai/data/inputs/cifar10_test_nonconv_" + to_string(worker_id) + ".txt";
 
+    } else {
+        CURR_DATASET = DATASETS::TOY;
+        INPUT_FILE_PATH = "test/ai/data/inputs/toy" + to_string(worker_id) + ".txt";
     }
 
     int num_neurons = config["num_neurons"];
@@ -222,6 +225,23 @@ vector<int> read_exp_specs(
         for(int e : examples){
             test_examples->push_back(e);
         }
+    }
+
+    if(config.contains("bs_mode")){
+        BS_MODE = config["bs_mode"];
+        if(BS_MODE == 1){
+            DO_DP_BS = true;
+        } else {
+            DO_DP_BS = false;
+        }
+    }
+
+    // if(config.contains("fraction")){
+    //     BS_WAIVER_FRACTION = config["fraction"];
+    // }
+
+    if(config.contains("bs_waiver_thresholds")){
+        BS_WAIVER_THRESHOLDS = config["bs_waiver_thresholds"];
     }
 
     return layer_specs;

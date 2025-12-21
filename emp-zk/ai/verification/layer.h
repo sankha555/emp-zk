@@ -38,6 +38,8 @@ class Layer {
 
     bool is_backsubstituted = false;
 
+    float* lower_diff;
+    float* upper_diff;
 
     // PROFILING
     double time_for_bs = 0;

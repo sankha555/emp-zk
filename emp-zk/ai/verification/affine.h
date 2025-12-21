@@ -24,6 +24,9 @@ class Affine : public Layer<T> {
     ParametersVerification<T>* param;
     
     int* pred_neuron_ids;
+    int neurons_saved = 0;
+
+    set<int> skippable_relus;
     
     Affine(int input_size, int output_size, int max_coeffs = -1, int party = PUBLIC) : Layer<T>(input_size, output_size, max_coeffs, party){
         if(max_coeffs == -1){
@@ -52,6 +55,9 @@ class Affine : public Layer<T> {
             }
             this->pred_neuron_ids[(i+1)*this->max_coeffs - 1] = -1;
         }
+
+        this->lower_diff = new float[this->output_size]{0};
+        this->upper_diff = new float[this->output_size]{0};
     }
 
     void forward(Layer<T>* input_layer, Layer<T>* prev_layer, bool do_inference = true){
@@ -72,19 +78,24 @@ class Affine : public Layer<T> {
         assert((this->param != NULL && this->param->param_matrix != NULL) && "Parameters not initialized for AFFINE layer");
         
         if(!ONLY_INFERENCE){
-            auto start = clock_start();
             compute_lower_constraints();
             compute_lower_bounds();
 
             compute_upper_constraints();
             compute_upper_bounds();
-            double tt = time_from(start);
-            this->time_for_fp += tt;
 
-            start = clock_start();
+            if constexpr (std::is_same<float, T>::value){
+                for(int i = 0; i < this->output_size; i++){
+                    this->lower_diff[i] = this->lower_bounds[i];
+                    this->upper_diff[i] = this->upper_bounds[i];
+                }
+            }
+
             backsubstitute(input_layer);
-            tt = time_from(start);
-            this->time_for_bs += tt;    
+            
+            if constexpr (std::is_same<float, T>::value){
+                this->analyse_and_unset_bs_bounds();
+            }       
         }
 
         if(do_inference){
@@ -102,6 +113,48 @@ class Affine : public Layer<T> {
                     normalize(this->output_size, this->output, this->output);
                 }
             }
+        }
+    }
+
+
+    void analyse_and_unset_bs_bounds(){
+        if(!BS_WAIVER_THRESHOLDS.count(to_string(this->layer_num))){
+            return;
+        }
+
+        float threshold = BS_WAIVER_THRESHOLDS[to_string(this->layer_num)];
+        // cerr << threshold << "\n";
+
+        for(int i = 0; i < this->output_size; i++){
+            this->lower_diff[i] = (this->lower_bounds[i] - this->lower_diff[i]);
+            this->upper_diff[i] = (this->upper_bounds[i] - this->upper_diff[i]);
+        }
+
+        vector<pair<pair<float, float>, int>> neuron_info;
+
+        for(int i = 0; i < this->output_size; i++){
+            neuron_info.push_back(
+                {{abs(this->lower_diff[i]), abs(this->upper_diff[i])}, i}
+            );
+        }
+
+        sort(neuron_info.begin(), neuron_info.end());
+
+        int num_nonbs_neurons = ((this->output_size * 1.0) * BS_WAIVER_FRACTION);
+        // cerr << num_nonbs_neurons << "\n";
+        // for(int k = 0; k < num_nonbs_neurons; k++){
+        //     int nid = neuron_info[k].second;
+        //     this->lower_bounds[nid] = this->lower_diff[nid] - this->lower_bounds[nid]; 
+        //     this->upper_bounds[nid] = this->upper_diff[nid] - this->upper_bounds[nid]; 
+        // }
+
+        for(int k = 0; k < this->output_size; k++){
+            int nid = neuron_info[k].second;
+            if(neuron_info[k].first.first < threshold){
+                this->lower_bounds[nid] = this->lower_diff[nid] - this->lower_bounds[nid]; 
+                this->upper_bounds[nid] = this->upper_diff[nid] - this->upper_bounds[nid];
+                neurons_saved++;
+            } 
         }
     }
 
@@ -261,10 +314,6 @@ class Affine : public Layer<T> {
                 this->lower_constraints[i*this->max_coeffs + j] = (this->param->param_matrix[i*this->max_coeffs + j]);
             }
         }
-
-        if constexpr (std::is_same<IntFp, T>::value){
-            // cerr << "w[6][644] = " << HIGH64(this->lower_constraints[6*this->max_coeffs + 0].value) << "\n";
-        }
     }
 
     void compute_upper_constraints(){
@@ -278,55 +327,34 @@ class Affine : public Layer<T> {
 
 
     void backsubstitute(Layer<T>* input_layer){
-        
+        for(int i = 0; i < this->output_size * this->max_coeffs; i++){
+            this->backsubstituted_lower_constraints[i] = (this->lower_constraints[i]);
+            this->backsubstituted_upper_constraints[i] = (this->upper_constraints[i]);
+        }
+
         if(DO_DP_BS){
-            // cout << "LAYER " << this->layer_num << "\n";
-            for(int i = 0; i < this->output_size * this->max_coeffs; i++){
-                this->backsubstituted_lower_constraints[i] = (this->lower_constraints[i]);
-                this->backsubstituted_upper_constraints[i] = (this->upper_constraints[i]);
-            }
-        
+            
             Layer<T>* prev_layer = this->prev_layer;
             while(prev_layer != NULL){
-                update_lower_bounds_using_prev_layers(this, prev_layer);     
+                cleartext_update_lower_bounds_using_prev_layers(this, prev_layer);     
                 prev_layer = prev_layer->prev_layer;
             }
             this->max_coeffs = this->input_size + 1;
 
             prev_layer = this->prev_layer;
             while(prev_layer != NULL){
-                update_upper_bounds_using_prev_layers(this, prev_layer);        
+                cleartext_update_upper_bounds_using_prev_layers(this, prev_layer);        
                 prev_layer = prev_layer->prev_layer;
             }
             this->max_coeffs = this->input_size + 1;
 
         } else {
-            for(int i = 0; i < this->output_size * this->max_coeffs; i++){
-                this->backsubstituted_lower_constraints[i] = T(this->lower_constraints[i]);
-                this->backsubstituted_upper_constraints[i] = T(this->upper_constraints[i]);
-            }
-        
-            Layer<T>* prev_layer = this->prev_layer;
-            while(prev_layer != NULL){
-                update_lower_bounds_using_prev_layers(this, prev_layer);
-                if(prev_layer->type == AFFINE){
-                    prev_layer = input_layer;
-                } else {
-                    prev_layer = prev_layer->prev_layer;
-                }
-            }
-            this->max_coeffs = this->input_size + 1;
 
-            prev_layer = this->prev_layer;
-            while(prev_layer != NULL){
-                update_upper_bounds_using_prev_layers(this, prev_layer);        
-                if(prev_layer->type == AFFINE){
-                    prev_layer = input_layer;
-                } else {
-                    prev_layer = prev_layer->prev_layer;
-                }
+            if(this->layer_num > 2){
+                backsubstitute_lc_using_prev_affine(this, this->prev_layer, this->prev_layer->prev_layer, input_layer);
+                backsubstitute_uc_using_prev_affine(this, this->prev_layer, this->prev_layer->prev_layer, input_layer);
             }
-            this->max_coeffs = this->input_size + 1;
+
         }
     }
 
@@ -354,10 +382,14 @@ class Affine : public Layer<T> {
 
         this->backsubstituted_lower_constraints= new T[this->output_size*this->max_coeffs];
         this->backsubstituted_upper_constraints= new T[this->output_size*this->max_coeffs];
+        this->neurons_saved = 0;
     }
 
     void describe(bool print_parameters = true, bool print_expressions = false){
-        cout << "Type: " << get_layer_type(this->type) << "\n";
+        if(this->party == BOB){
+            return;
+        }
+        cout << "Type: " << get_layer_type(this->type) << "[" << this->layer_num << "]" << "\n";
         if(print_parameters){
             cout << "Parameters:\n";
             param->print_parameters();
@@ -402,6 +434,21 @@ class Affine : public Layer<T> {
                     cout << this->upper_bounds[i] << " ";
                 }
             }
+
+            if constexpr (std::is_same<float, T>::value){
+                cout << "\n\n";
+                cout << "Lower Diff:\n";
+                for(int i = 0; i < this->output_size; i++){
+                    cout << this->lower_diff[i] << " ";
+                }
+
+                cout << "\nUpper Diff:\n";
+                for(int i = 0; i < this->output_size; i++){
+                    cout << this->upper_diff[i] << " ";
+                }
+                cout << "\n";
+            }
+            
         }
 
         if (print_expressions && !ONLY_INFERENCE){
@@ -502,137 +549,6 @@ class Affine : public Layer<T> {
 
         if(std::is_same<IntFp, T>::value){
             normalize(this->output_size, (IntFp*)this->upper_bounds, (IntFp*)this->upper_bounds);
-        }
-    }
-
-
-
-    
-    void backsubstitute_lower_constraints(int num_inputs){
-        T* new_lower_constraints = new T[this->output_size * this->max_coeffs];
-
-        T* prev_lc = this->prev_layer->lower_constraints;
-        T* prev_uc = this->prev_layer->upper_constraints;
-        int num_neurons_in_prev_layer = this->input_size;
-
-        for(int i = 0; i < this->output_size; i++){
-            for(int k = 0; k < num_inputs; k++){
-                new_lower_constraints[i*this->max_coeffs + k] = constant<T>(0);
-                for(int j = 0; j < num_neurons_in_prev_layer; j++){
-                    if(greater_eq_zero<T>((T)this->lower_constraints[i*(this->input_size+1) + j], false)){
-                        new_lower_constraints[i*this->max_coeffs + k] = new_lower_constraints[i*this->max_coeffs + k] + this->lower_constraints[i*(this->input_size+1) + j]*prev_lc[j*(num_inputs + 1) + k];
-                    } else {
-                        new_lower_constraints[i*this->max_coeffs + k] = new_lower_constraints[i*this->max_coeffs + k] + this->lower_constraints[i*(this->input_size+1) + j]*prev_uc[j*(num_inputs + 1) + k];
-                    }                 
-                }
-            }
-
-            new_lower_constraints[(i+1)*this->max_coeffs - 1] = constant<T>(0);
-            for(int j = 0; j < num_neurons_in_prev_layer; j++){
-                if(greater_eq_zero<T>((T)this->lower_constraints[i*(this->input_size+1) + j], false)){
-                    new_lower_constraints[(i+1)*this->max_coeffs - 1] = new_lower_constraints[(i+1)*this->max_coeffs - 1] + this->lower_constraints[i*(this->input_size+1) + j]*prev_lc[(j+1)*(num_inputs + 1) - 1];
-                } else {
-                    new_lower_constraints[(i+1)*this->max_coeffs - 1] = new_lower_constraints[(i+1)*this->max_coeffs - 1] + this->lower_constraints[i*(this->input_size+1) + j]*prev_uc[(j+1)*(num_inputs + 1) - 1];
-                }                    
-            }
-
-            if(std::is_same<IntFp, T>::value){
-                normalize(this->max_coeffs, (IntFp*) (new_lower_constraints + i*this->max_coeffs), (IntFp*) (new_lower_constraints + i*this->max_coeffs));
-            }
-
-            new_lower_constraints[(i + 1)*this->max_coeffs - 1] = new_lower_constraints[(i + 1)*this->max_coeffs - 1] + this->lower_constraints[(i + 1)*(this->input_size + 1) - 1];
-        }
-        // delete[] this->lower_constraints;
-        this->lower_constraints = new_lower_constraints;
-    }
-
-
-    void backsubstitute_upper_constraints(int num_inputs){
-        T* new_upper_constraints = new T[this->output_size * this->max_coeffs];
-
-        T* prev_lc = this->prev_layer->lower_constraints;
-        T* prev_uc = this->prev_layer->upper_constraints;
-        int num_neurons_in_prev_layer = this->input_size;
-
-        for(int i = 0; i < this->output_size; i++){
-            for(int k = 0; k < num_inputs; k++){
-                new_upper_constraints[i*this->max_coeffs + k] = constant<T>(0);
-                for(int j = 0; j < num_neurons_in_prev_layer; j++){
-                    if(greater_eq_zero<T>((T)this->upper_constraints[i*(this->input_size+1) + j], false)){
-                        new_upper_constraints[i*this->max_coeffs + k] = new_upper_constraints[i*this->max_coeffs + k] + this->upper_constraints[i*(this->input_size+1) + j]*prev_uc[j*(num_inputs + 1) + k];
-                    } else {
-                        new_upper_constraints[i*this->max_coeffs + k] = new_upper_constraints[i*this->max_coeffs + k] + this->upper_constraints[i*(this->input_size+1) + j]*prev_lc[j*(num_inputs + 1) + k];
-                    }                    
-                }
-            }
-
-            new_upper_constraints[(i+1)*this->max_coeffs - 1] = constant<T>(0);
-            for(int j = 0; j < num_neurons_in_prev_layer; j++){
-                if(greater_eq_zero<T>((T)this->upper_constraints[i*(this->input_size+1) + j], false)){
-                    new_upper_constraints[(i+1)*this->max_coeffs - 1] = new_upper_constraints[(i+1)*this->max_coeffs - 1] + this->upper_constraints[i*(this->input_size+1) + j]*prev_uc[(j+1)*(num_inputs + 1) - 1];
-                } else {
-                    new_upper_constraints[(i+1)*this->max_coeffs - 1] = new_upper_constraints[(i+1)*this->max_coeffs - 1] + this->upper_constraints[i*(this->input_size+1) + j]*prev_lc[(j+1)*(num_inputs + 1) - 1];
-                }                    
-            }
-
-            if(std::is_same<IntFp, T>::value){
-                normalize(this->max_coeffs, (IntFp*) (new_upper_constraints + i*this->max_coeffs), (IntFp*) (new_upper_constraints + i*this->max_coeffs));
-            }
-
-            new_upper_constraints[(i + 1)*this->max_coeffs - 1] = new_upper_constraints[(i + 1)*this->max_coeffs - 1] + this->upper_constraints[(i + 1)*(this->input_size + 1) - 1];
-        }
-
-        // delete[] this->upper_constraints;
-        this->upper_constraints = new_upper_constraints;
-    }
-
-    void compute_lower_bounds_after_backsubstitution(Layer<T>* input_layer){
-        T* input_lb = input_layer->lower_bounds;
-        T* input_ub = input_layer->upper_bounds;
-        int num_inputs = input_layer->input_size;
-
-        for(int i = 0; i < this->output_size; i++){
-            this->lower_bounds[i] = constant<T>(0);
-            for(int k = 0; k < num_inputs; k++){
-                if(greater_eq_zero(this->lower_constraints[i*this->max_coeffs + k], false)){
-                    this->lower_bounds[i] = this->lower_bounds[i] + this->lower_constraints[i*this->max_coeffs + k]*input_lb[k];
-                } else {
-                    this->lower_bounds[i] = this->lower_bounds[i] + this->lower_constraints[i*this->max_coeffs + k]*input_ub[k];
-                }
-            }
-        }
-
-        if constexpr (std::is_same<T, IntFp>::value){
-            normalize(this->output_size, (IntFp*) this->lower_bounds, (IntFp*) this->lower_bounds);
-        }
-
-        for(int i = 0; i < this->output_size; i++){
-            this->lower_bounds[i] = this->lower_bounds[i] + this->lower_constraints[(i+1)*this->max_coeffs - 1];
-        }
-    }
-
-    void compute_upper_bounds_after_backsubstitution(Layer<T>* input_layer){
-        T* input_lb = input_layer->lower_bounds;
-        T* input_ub = input_layer->upper_bounds;
-        int num_inputs = input_layer->input_size;
-
-        for(int i = 0; i < this->output_size; i++){
-            this->upper_bounds[i] = constant<T>(0);
-            for(int k = 0; k < num_inputs; k++){
-                if(greater_eq_zero(this->upper_constraints[i*this->max_coeffs + k], false)){
-                    this->upper_bounds[i] = this->upper_bounds[i] + this->upper_constraints[i*this->max_coeffs + k]*input_ub[k];
-                } else {
-                    this->upper_bounds[i] = this->upper_bounds[i] + this->upper_constraints[i*this->max_coeffs + k]*input_lb[k];
-                }
-            }
-        }
-
-        if constexpr (std::is_same<T, IntFp>::value){
-            normalize(this->output_size, (IntFp*) this->upper_bounds, (IntFp*) this->upper_bounds);
-        }
-
-        for(int i = 0; i < this->output_size; i++){
-            this->upper_bounds[i] = this->upper_bounds[i] + this->upper_constraints[(i+1)*this->max_coeffs - 1];
         }
     }
 

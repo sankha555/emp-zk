@@ -7,12 +7,12 @@
 #include "emp-zk/emp-zk.h"
 
 #include <fstream>
+#include <map>
 
 #define NUM_THREADS 1
 #define FLOATBW 32
 #define FXPBW 61
 // #define FXPSCALE 20
-#define DO_DP_BS true
 
 #define REVERSE(s) reversed(s)
 
@@ -20,6 +20,10 @@ using namespace std;
 using namespace emp;
 
 int FXPSCALE = 20;
+bool DO_DP_BS = true;
+int BS_MODE = 0;    // 0 = no backsubstitution, 1 = DP_BS, 2 = Sankha BS
+float BS_WAIVER_FRACTION = 0.3;
+map<string, float> BS_WAIVER_THRESHOLDS;
 
 IntFp FIELD_ZERO;
 IntFp FIELD_ONE;
@@ -34,8 +38,8 @@ bool ONLY_INFERENCE = 0;
 enum LAYER_TYPE{INPUT, AFFINE, CONV2D, RELU, OUTPUT};
 enum TEST_MODE{CLTFLOAT, CLTFXP, SECUREMODE};
 
-enum DATASETS{MNIST, CIFAR10};
-int NUM_FEATURES[] = {784, 3072};
+enum DATASETS{MNIST, CIFAR10, TOY};
+int NUM_FEATURES[] = {784, 3072, 2};
 int CURR_DATASET = DATASETS::MNIST;
 
 float INPUT_MIN = -1e9;

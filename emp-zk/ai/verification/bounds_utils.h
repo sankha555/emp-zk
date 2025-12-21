@@ -15,6 +15,180 @@ using namespace emp;
 
 
 template <typename T>
+void backsubstitute_lc_using_prev_affine(Layer<T>* current_layer, Layer<T>* prev_activation, Layer<T>* prev_affine, Layer<T>* input_layer){
+
+    T* new_backsubstituted_lower_constraints = new T[current_layer->output_size * (NUM_FEATURES[CURR_DATASET] + 1) ];
+
+    for(int i = 0; i < current_layer->output_size; i++){
+        T constant_term = constant<T>(0);
+        for(int j = 0; j < prev_affine->output_size; j++){
+            if(greater_eq_zero<T>(current_layer->lower_constraints[i * current_layer->max_coeffs + j], true)){
+
+                // constant due to ReLU
+                constant_term = constant_term + current_layer->lower_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->lower_constraints[j * 2 + 1];
+
+                // constant due to Affine
+                constant_term = constant_term + current_layer->lower_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->lower_constraints[j * 2 + 0] *
+                                                prev_affine->backsubstituted_lower_constraints[(j + 1) * (NUM_FEATURES[CURR_DATASET] + 1) - 1];
+                
+            } else {
+
+                // constant due to ReLU
+                constant_term = constant_term + current_layer->lower_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->upper_constraints[j * 2 + 1];
+
+                // constant due to Affine
+                constant_term = constant_term + current_layer->lower_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->upper_constraints[j * 2 + 0] *
+                                                prev_affine->backsubstituted_upper_constraints[(j + 1) * (NUM_FEATURES[CURR_DATASET] + 1) - 1];
+            }
+        }
+        new_backsubstituted_lower_constraints[(i + 1)* (NUM_FEATURES[CURR_DATASET] + 1) - 1] = constant_term + current_layer->lower_constraints[(i + 1) * current_layer->max_coeffs - 1];
+
+
+
+        for(int k = 0; k < (NUM_FEATURES[CURR_DATASET]); k++){
+
+            T accumulated = constant<T>(0);
+
+            for(int j = 0; j < prev_affine->output_size; j++){
+                if(greater_eq_zero<T>(current_layer->lower_constraints[i * current_layer->max_coeffs + j], true)){
+                    accumulated = accumulated + current_layer->lower_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->lower_constraints[j * 2 + 0] *
+                                                prev_affine->backsubstituted_lower_constraints[j * (NUM_FEATURES[CURR_DATASET] + 1) + k];
+                    
+                } else {
+                    accumulated = accumulated + current_layer->lower_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->upper_constraints[j * 2 + 0] *
+                                                prev_affine->backsubstituted_upper_constraints[j * (NUM_FEATURES[CURR_DATASET] + 1) + k];
+
+                }
+            }
+
+            new_backsubstituted_lower_constraints[i * (NUM_FEATURES[CURR_DATASET] + 1) + k] = accumulated;
+        }
+
+    }
+
+    delete[] current_layer->backsubstituted_lower_constraints;
+    current_layer->backsubstituted_lower_constraints = new_backsubstituted_lower_constraints;
+
+
+    for(int i = 0; i < current_layer->output_size; i++){
+        T* current_lower_constraints = current_layer->backsubstituted_lower_constraints + (i* (NUM_FEATURES[CURR_DATASET] + 1));
+
+        T accumulated = current_lower_constraints[NUM_FEATURES[CURR_DATASET]];
+
+        for(int j = 0; j < input_layer->output_size; j++){
+            if(greater_eq_zero<T>((T) current_lower_constraints[j], true)){
+                accumulated = accumulated + current_lower_constraints[j] * input_layer->lower_bounds[j];
+            } else {
+                accumulated = accumulated + current_lower_constraints[j] * input_layer->upper_bounds[j];
+            }
+        }
+
+        // current_layer->lower_bounds[i] = inner_product_emp(current_layer->max_coeffs, current_lower_constraints, prev_layer_bounds_to_mult);
+        current_layer->lower_bounds[i] = accumulated;
+    }
+
+    if constexpr (std::is_same<IntFp, T>::value){
+        normalize(current_layer->output_size, current_layer->lower_bounds, current_layer->lower_bounds);
+    }
+
+
+}
+
+
+template <typename T>
+void backsubstitute_uc_using_prev_affine(Layer<T>* current_layer, Layer<T>* prev_activation, Layer<T>* prev_affine, Layer<T>* input_layer){
+
+    T* new_backsubstituted_upper_constraints = new T[current_layer->output_size * (NUM_FEATURES[CURR_DATASET] + 1) ];
+
+    for(int i = 0; i < current_layer->output_size; i++){
+        T constant_term = constant<T>(0);
+        for(int j = 0; j < prev_affine->output_size; j++){
+            if(greater_eq_zero<T>(current_layer->upper_constraints[i * current_layer->max_coeffs + j], false)){
+
+                // constant due to ReLU
+                constant_term = constant_term + current_layer->upper_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->upper_constraints[j * 2 + 1];
+
+                // constant due to Affine
+                constant_term = constant_term + current_layer->upper_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->upper_constraints[j * 2 + 0] *
+                                                prev_affine->backsubstituted_upper_constraints[(j + 1) * (NUM_FEATURES[CURR_DATASET] + 1) - 1];
+                
+            } else {
+
+                // constant due to ReLU
+                constant_term = constant_term + current_layer->upper_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->lower_constraints[j * 2 + 1];
+
+                // constant due to Affine
+                constant_term = constant_term + current_layer->upper_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->lower_constraints[j * 2 + 0] *
+                                                prev_affine->backsubstituted_lower_constraints[(j + 1) * (NUM_FEATURES[CURR_DATASET] + 1) - 1];
+            }
+        }
+        new_backsubstituted_upper_constraints[(i + 1)* (NUM_FEATURES[CURR_DATASET] + 1) - 1] = constant_term + current_layer->upper_constraints[(i + 1) * current_layer->max_coeffs - 1];
+
+
+
+        for(int k = 0; k < (NUM_FEATURES[CURR_DATASET]); k++){
+
+            T accumulated = constant<T>(0);
+
+            for(int j = 0; j < prev_affine->output_size; j++){
+                if(greater_eq_zero<T>(current_layer->upper_constraints[i * current_layer->max_coeffs + j], false)){
+                    accumulated = accumulated + current_layer->upper_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->upper_constraints[j * 2 + 0] *
+                                                prev_affine->backsubstituted_upper_constraints[j * (NUM_FEATURES[CURR_DATASET] + 1) + k];
+                    
+                } else {
+                    accumulated = accumulated + current_layer->upper_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->lower_constraints[j * 2 + 0] *
+                                                prev_affine->backsubstituted_lower_constraints[j * (NUM_FEATURES[CURR_DATASET] + 1) + k];
+
+                }
+            }
+
+            new_backsubstituted_upper_constraints[i * (NUM_FEATURES[CURR_DATASET] + 1) + k] = accumulated;
+        }
+
+    }
+
+    delete[] current_layer->backsubstituted_upper_constraints;
+    current_layer->backsubstituted_upper_constraints = new_backsubstituted_upper_constraints;
+
+
+    for(int i = 0; i < current_layer->output_size; i++){
+        T* current_upper_constraints = current_layer->backsubstituted_upper_constraints + (i* (NUM_FEATURES[CURR_DATASET] + 1));
+
+        T accumulated = current_upper_constraints[NUM_FEATURES[CURR_DATASET]];
+
+        for(int j = 0; j < input_layer->output_size; j++){
+            if(greater_eq_zero<T>((T) current_upper_constraints[j], false)){
+                accumulated = accumulated + current_upper_constraints[j] * input_layer->upper_bounds[j];
+            } else {
+                accumulated = accumulated + current_upper_constraints[j] * input_layer->lower_bounds[j];
+            }
+        }
+
+        // current_layer->upper_bounds[i] = inner_product_emp(current_layer->max_coeffs, current_upper_constraints, prev_layer_bounds_to_mult);
+        current_layer->upper_bounds[i] = accumulated;
+    }
+
+    if constexpr (std::is_same<IntFp, T>::value){
+        normalize(current_layer->output_size, current_layer->upper_bounds, current_layer->upper_bounds);
+    }
+
+
+}
+
+
+template <typename T>
 void update_lower_bounds_using_prev_layers(Layer<T>* current_layer, Layer<T>* prev_layer){
     assert(current_layer->max_coeffs == prev_layer->output_size + 1 && "Current layer's no. of coeffs should match (prev. layer's num neurons + 1).");
     auto start = clock_start();
