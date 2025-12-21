@@ -210,6 +210,7 @@ void update_lower_bounds_using_prev_layers(Layer<T>* current_layer, Layer<T>* pr
 
         for(int i = 0; i < current_layer->output_size; i++){
             if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                current_layer->lower_bounds[i] = current_layer->lower_bounds[i] * FIELD_SCALED_ONE;
                 continue;
             }
         
@@ -555,6 +556,7 @@ void update_upper_bounds_using_prev_layers(Layer<T>* current_layer, Layer<T>* pr
 
         for(int i = 0; i < current_layer->output_size; i++){
             if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                current_layer->upper_bounds[i] = current_layer->upper_bounds[i] * FIELD_SCALED_ONE;
                 continue;
             }
         
