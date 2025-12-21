@@ -54,11 +54,13 @@ class VerifiableFeedForwardNeuralNetwork {
     int num_inputs;
 
     stats* savings_stats;
+    map<int, set<int>*> skip_map;
 
     VerifiableFeedForwardNeuralNetwork(int num_layers, Layer<T>** layers, int party = PUBLIC){
         this->num_layers = num_layers;
         this->layers = layers;
         this->party = party;
+        this->savings_stats = new stats();
         // validate_layers();
     }
 
@@ -169,36 +171,42 @@ class VerifiableFeedForwardNeuralNetwork {
     }
     
     void reset(){
-        this->savings_stats = new stats();
         for(int i = 0; i < this->num_layers; i++){
             ((Layer<T>*) this->layers[i])->reset();
         }
+        this->skip_map.clear();
     }
 
 
-    std::pair<bool, bool> forward(bool do_backsubstitution = false, bool do_inference = true){
+    std::pair<bool, bool> forward(int example_num = 1, bool do_backsubstitution = false, bool do_inference = true){
         Layer<T>* prev_layer = nullptr;
         Layer<T>* input_layer = layers[0];
 
         int total_neurons_saved = 0;
         int total_neurons = 0;
 
-        int savings;
+        int savings = 0;
         for(int i = 0; i < num_layers; i++){
             layers[i]->layer_num = i+1;
+
+            if(std::is_same<T, IntFp>::value && layers[i]->type == AFFINE && this->skip_map.count(layers[i]->layer_num)){
+                ((Affine<T>*) layers[i])->skippable_neurons = this->skip_map[layers[i]->layer_num];
+            }
+
             layers[i]->forward(input_layer, prev_layer, do_inference);
             prev_layer = layers[i];
 
-            if(layers[i]->type == AFFINE){
+            if(std::is_same<T, float>::value && layers[i]->type == AFFINE){
                 total_neurons_saved += ((Affine<T>*) layers[i])->neurons_saved;
                 int m = ((Affine<T>*) layers[i])->output_size;
                 total_neurons += m;
 
                 savings += ((Affine<T>*) layers[i])->neurons_saved * (i/2 * (m*m + m));
-                this->savings_stats->new_example(i+1, savings);
+
+                this->skip_map[layers[i]->layer_num] = ((Affine<T>*) layers[i])->skippable_neurons;
             }
         }
-        // cerr << "Saved " << total_neurons_saved * 1.0/total_neurons << " neurons\n";
+        this->savings_stats->new_example(example_num, savings);
         
         bool verification_result;
         verification_result = ((Output<T>*) layers[this->num_layers-1])->verified;

@@ -24,9 +24,9 @@ class Affine : public Layer<T> {
     ParametersVerification<T>* param;
     
     int* pred_neuron_ids;
-    int neurons_saved = 0;
 
-    set<int> skippable_relus;
+    set<int>* skippable_neurons;
+    int neurons_saved = 0;
     
     Affine(int input_size, int output_size, int max_coeffs = -1, int party = PUBLIC) : Layer<T>(input_size, output_size, max_coeffs, party){
         if(max_coeffs == -1){
@@ -118,6 +118,7 @@ class Affine : public Layer<T> {
 
 
     void analyse_and_unset_bs_bounds(){
+        this->skippable_neurons = new set<int>();
         if(!BS_WAIVER_THRESHOLDS.count(to_string(this->layer_num))){
             return;
         }
@@ -153,6 +154,8 @@ class Affine : public Layer<T> {
             if(neuron_info[k].first.first < threshold){
                 this->lower_bounds[nid] = this->lower_diff[nid] - this->lower_bounds[nid]; 
                 this->upper_bounds[nid] = this->upper_diff[nid] - this->upper_bounds[nid];
+
+                this->skippable_neurons->insert(nid);
                 neurons_saved++;
             } 
         }
@@ -336,14 +339,14 @@ class Affine : public Layer<T> {
             
             Layer<T>* prev_layer = this->prev_layer;
             while(prev_layer != NULL){
-                cleartext_update_lower_bounds_using_prev_layers(this, prev_layer);     
+                update_lower_bounds_using_prev_layers(this, prev_layer);     
                 prev_layer = prev_layer->prev_layer;
             }
             this->max_coeffs = this->input_size + 1;
 
             prev_layer = this->prev_layer;
             while(prev_layer != NULL){
-                cleartext_update_upper_bounds_using_prev_layers(this, prev_layer);        
+                update_upper_bounds_using_prev_layers(this, prev_layer);        
                 prev_layer = prev_layer->prev_layer;
             }
             this->max_coeffs = this->input_size + 1;

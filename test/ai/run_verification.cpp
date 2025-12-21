@@ -44,7 +44,7 @@ void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   set<int> verified_examples;
 
   for(int i = base_example; i < base_example + num_examples; i++){
-    auto result = verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon);
+    auto result = verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
     bool classified = result.first;
     bool verified = result.second;
 
@@ -108,6 +108,9 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   std::streambuf* original_buf2;
   if(!print_to_stdout) original_buf2 = std::cout.rdbuf(field_file.rdbuf());
 
+  VerifiableFeedForwardNeuralNetwork<float>* model_float = create_model<float>(num_layers, layer_specs, party);
+  model_float->load_weights_and_biases(PARAMETERS_PATH.c_str());
+
   VerifiableFeedForwardNeuralNetwork<IntFp>* model_field = create_model<IntFp>(num_layers, layer_specs, party);
   model_field->load_weights_and_biases(PARAMETERS_PATH.c_str());
 
@@ -118,64 +121,46 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   set<int> verified_examples;
 
   auto start = clock_start();
-  if(base_example == -1){
+  if(base_example != -1){
+    test_examples = vector<int>(100);
+    std::iota(test_examples.begin(), test_examples.end(), 1);
     num_examples = test_examples.size();
-    for(int j : test_examples){
-      int i = j-1;
-      auto result = verify_example<IntFp>(model_field, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon);
-      bool classified = result.first;
-      bool verified = result.second;
-
-      if(classified){
-        correctly_classified_examples.insert(i+1);
-      }
-
-      if(verified){
-        verified_examples.insert(i+1);
-      }
-
-      num_examples_verified += (int) verified;
-      num_examples_classified += (int) classified;
-
-      tt = time_from(start);
-
-      if(print_to_stdout){
-        if(party == ALICE)   cout << "\rVerified: " << num_examples_verified << "/" << (i+1) << " images [Avg. time = " << (tt/(i+1))/1e6 << " sec]" << std::flush;
-      } else {
-        if(party == ALICE)   cout << (verified ? "YES" : "NO") << "\n";
-      }
-
-      model_field->describe(false, true);
-    }
-  } else {
-    for(int i = base_example; i < base_example + num_examples; i++){
-      auto result = verify_example<IntFp>(model_field, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon);
-      bool classified = result.first;
-      bool verified = result.second;
-
-      if(classified){
-        correctly_classified_examples.insert(i+1);
-      }
-
-      if(verified){
-        verified_examples.insert(i+1);
-      }
-
-      num_examples_verified += (int) verified;
-      num_examples_classified += (int) classified;
-
-      tt = time_from(start);
-
-      if(print_to_stdout){
-        if(party == ALICE)   cout << "\rVerified: " << num_examples_verified << "/" << (i+1) << " images [Avg. time = " << (tt/(i+1))/1e6 << " sec]" << std::flush;
-      } else {
-        if(party == ALICE)   cout << (verified ? "YES" : "NO") << "\n";
-      }
-
-      // model_field->describe(false, true);
-    }
   }
+  num_examples = test_examples.size();
   
+  for(int j : test_examples){
+    int i = j-1;
+
+
+    verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
+    model_field->skip_map = model_float->skip_map;
+    
+    auto result = verify_example<IntFp>(model_field, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
+    bool classified = result.first;
+    bool verified = result.second;
+
+    if(classified){
+      correctly_classified_examples.insert(i+1);
+    }
+
+    if(verified){
+      verified_examples.insert(i+1);
+    }
+
+    num_examples_verified += (int) verified;
+    num_examples_classified += (int) classified;
+
+    tt = time_from(start);
+
+    if(print_to_stdout){
+      if(party == ALICE)   cout << "\rVerified: " << num_examples_verified << "/" << (i+1) << " images [Avg. time = " << (tt/(i+1))/1e6 << " sec]" << std::flush;
+    } else {
+      if(party == ALICE)   cout << (verified ? "YES" : "NO") << "\n";
+    }
+
+    model_field->describe(false, true);
+  }
+
 
   if(party == ALICE){
     cout << "Correctly Classified Examples\n";

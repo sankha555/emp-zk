@@ -236,10 +236,6 @@ vector<int> read_exp_specs(
         }
     }
 
-    // if(config.contains("fraction")){
-    //     BS_WAIVER_FRACTION = config["fraction"];
-    // }
-
     if(config.contains("bs_waiver_thresholds")){
         BS_WAIVER_THRESHOLDS = config["bs_waiver_thresholds"];
     }
@@ -249,10 +245,10 @@ vector<int> read_exp_specs(
 
 
 template <typename T>
-std::pair<bool, bool> verify_example(VerifiableFeedForwardNeuralNetwork<T>* model, const char* input_file, int input_offset, float epsilon){
+std::pair<bool, bool> verify_example(VerifiableFeedForwardNeuralNetwork<T>* model, const char* input_file, int input_offset, float epsilon, int example_num = 1){
     model->reset();
     model->load_input(input_file, input_offset, epsilon);
-    auto result = model->forward(true, true);
+    auto result = model->forward(example_num, true, true);
     return result;
 }   
 
