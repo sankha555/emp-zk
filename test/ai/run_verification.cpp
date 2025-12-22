@@ -120,46 +120,63 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   set<int> correctly_classified_examples;
   set<int> verified_examples;
 
-  auto start = clock_start();
   if(base_example != -1){
     test_examples = vector<int>(num_examples);
     std::iota(test_examples.begin(), test_examples.end(), base_example+1);
   }
   num_examples = test_examples.size();
-  
+
+  auto start = clock_start();
+  double total_time = 0;
+
   for(int j : test_examples){
     int i = j-1;
-
 
     auto res = verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
     model_field->skip_map = model_float->skip_map;
 
-    model_field->skip_map = {};
-    (model_field->skip_map)[2]  = new std::set<int>();
-    (model_field->skip_map)[4]  = new std::set<int>();
-    (model_field->skip_map)[6]  = new std::set<int>();
 
-    (model_field->skip_map)[8]  = new std::set<int>{
-        1, 3, 5, 8, 9, 10, 12, 16, 17, 18, 20, 21, 23, 26, 27,
-        32, 34, 35, 37, 39, 40, 42, 45, 46, 49, 50, 52, 53, 54,
-        55, 57, 58, 61, 62, 64, 71, 74, 75, 77, 80, 85, 86,
-        88, 90, 91, 97, 99
-    };
-
-    (model_field->skip_map)[10] = new std::set<int>{
-        13, 15, 20, 23, 24, 32, 37, 38, 39, 41, 47, 54, 55,
-        58, 60, 61, 67, 73, 75, 76, 82, 93, 94
-    };
-
-    (model_field->skip_map)[12] = new std::set<int>();
-
-    if(party == BOB){
-      for(int l = 2; l <= 12; l += 2){
-        cerr << model_field->skip_map[l]->size() << " ";
+    if(party == ALICE){
+      std::ofstream out("test/ai/data/temp.txt");
+      if (!out) {
+          throw std::runtime_error("Failed to open file for writing");
       }
-      cerr << "\n";
+
+      for (const auto& [key, values] : model_field->skip_map) {
+          out << key << ":";
+          for (int v : *values) {
+              out << " " << v;
+          }
+          out << "\n";
+      }
+    } else {
+      std::ifstream in("test/ai/data/temp.txt");
+      if (!in) {
+          throw std::runtime_error("Failed to open file for reading");
+      }
+
+      std::string line;
+
+      while (std::getline(in, line)) {
+          if (line.empty()) continue;
+
+          std::stringstream ss(line);
+          int key;
+          char colon;
+
+          ss >> key >> colon; // reads "key:"
+
+          auto* values = new std::set<int>();
+          int v;
+          while (ss >> v) {
+              values->insert(v);
+          }
+
+          model_field->skip_map[key] = std::move(values);
+      }
     }
     
+    start = clock_start();
     auto result = verify_example<IntFp>(model_field, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
     bool classified = result.first;
     bool verified = result.second;
@@ -176,6 +193,7 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
     num_examples_classified += (int) classified;
 
     tt = time_from(start);
+    total_time += tt;
 
     if(print_to_stdout){
       if(party == ALICE)   cout << "\rVerified: " << num_examples_verified << "/" << (i+1) << " images [Avg. time = " << (tt/(i+1))/1e6 << " sec]" << std::flush;
@@ -208,8 +226,8 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
     cerr << "\n" << (cheated ? "\033[31mVerfication failed!" : "\033[32mVerfication successful!") << "\033[0m\n";
   }
 
-  tt = time_from(start); 
-  if(party == ALICE)   cout << "\nAvg. time to verify: " << (tt/1000000)/num_examples << " s\n";
+
+  if(party == ALICE)   cout << "\nAvg. time to verify: " << (total_time/1000000)/num_examples << " s\n";
   if(party == ALICE)   cout << "Communication: " << ios[0]->counter/(1024.0 * 1024.0) << " MB\n";
 
   if(!print_to_stdout) std::cout.rdbuf(original_buf2);
