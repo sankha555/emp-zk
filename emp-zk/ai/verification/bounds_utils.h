@@ -240,6 +240,9 @@ void update_lower_bounds_using_prev_layers(Layer<T>* current_layer, Layer<T>* pr
         ZKgeneralTruncAny(current_layer->party, current_layer->lower_bounds, current_layer->lower_bounds, current_layer->output_size, FXPSCALE);
 
         for(int i = 0; i < current_layer->output_size; i++){
+            if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                continue;
+            }
             current_layer->lower_bounds[i] = current_layer->lower_bounds[i] + current_layer->backsubstituted_lower_constraints[(i+1)*current_layer->max_coeffs - 1];    // adding the constant bias term
         }
 
@@ -271,7 +274,7 @@ void update_lower_bounds_using_prev_layers(Layer<T>* current_layer, Layer<T>* pr
 template <typename T>
 void update_lower_constraints_with_affine(Layer<T>* current_layer, Layer<T>* prev_layer){
 
-    T* new_backsubstituted_lower_constraints = new T[current_layer->output_size * (prev_layer->input_size + 1)];
+    T* new_backsubstituted_lower_constraints = new T[current_layer->output_size * (prev_layer->input_size + 1)]{FIELD_ZERO};
 
     if constexpr (std::is_same<IntFp, T>::value && SECURE){
         double time_for_comp = 0;
@@ -282,6 +285,7 @@ void update_lower_constraints_with_affine(Layer<T>* current_layer, Layer<T>* pre
         IntFp* coeff_sign = new IntFp[2 * (current_layer->max_coeffs - 1)];   
         IntFp* prev_coeffs_to_mult = new IntFp[2 * prev_layer->output_size];
         T* copied_lc = new T[2*(current_layer->max_coeffs - 1)];
+
 
         for(int i = 0; i < current_layer->output_size; i++){
             if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
@@ -334,9 +338,6 @@ void update_lower_constraints_with_affine(Layer<T>* current_layer, Layer<T>* pre
         delete[] coeff_sign;
         delete[] prev_coeffs_to_mult;
         delete[] copied_lc;
-
-        // cout << "Time for Comparisons = " << time_for_comp/1e6 << " seconds\n";
-        // cout << "Time for Inner-Product = " << time_for_ip/1e6 << " seconds\n\n\n";
 
         current_layer->max_coeffs = prev_layer->max_coeffs; // check
 
@@ -442,7 +443,7 @@ void update_lower_constraints_with_conv(Layer<T>* current_layer, Conv2D<T>* prev
 
 template <typename T>
 void update_lower_constraints_with_activation(Layer<T>* current_layer, Layer<T>* prev_layer){
-    T* new_backsubstituted_lower_constraints = new T[current_layer->output_size * (prev_layer->input_size + 1)];
+    T* new_backsubstituted_lower_constraints = new T[current_layer->output_size * (prev_layer->input_size + 1)]{FIELD_ZERO};
 
     if constexpr (std::is_same<IntFp, T>::value && SECURE) {
 
@@ -461,6 +462,7 @@ void update_lower_constraints_with_activation(Layer<T>* current_layer, Layer<T>*
         /* handle constant term */
         for(int i = 0; i < current_layer->output_size; i++){
             if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                constant_terms[i] = FIELD_ZERO;
                 continue;
             }
 
@@ -512,6 +514,9 @@ void update_lower_constraints_with_activation(Layer<T>* current_layer, Layer<T>*
         ZKgeneralTruncAny(current_layer->party, constant_terms, constant_terms, current_layer->output_size, FXPSCALE);
 
         for(int i = 0; i < current_layer->output_size; i++){
+            if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                continue;
+            }
             new_backsubstituted_lower_constraints[(i + 1) * (prev_layer->input_size + 1) - 1] = new_backsubstituted_lower_constraints[(i + 1) * (prev_layer->input_size + 1) - 1] +
                                                                                                 constant_terms[i];
         }
@@ -583,6 +588,9 @@ void update_upper_bounds_using_prev_layers(Layer<T>* current_layer, Layer<T>* pr
         ZKgeneralTruncAny(current_layer->party, current_layer->upper_bounds, current_layer->upper_bounds, current_layer->output_size, FXPSCALE);
 
         for(int i = 0; i < current_layer->output_size; i++){
+            if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                continue;
+            }
             current_layer->upper_bounds[i] = current_layer->upper_bounds[i] + current_layer->backsubstituted_upper_constraints[(i+1)*current_layer->max_coeffs - 1];    // adding the constant bias term
         }
 
@@ -811,6 +819,7 @@ void update_upper_constraints_with_activation(Layer<T>* current_layer, Layer<T>*
         /* handle constant term */
         for(int i = 0; i < current_layer->output_size; i++){
             if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                constant_terms[i] = FIELD_ZERO;
                 continue;
             }
 
@@ -862,6 +871,9 @@ void update_upper_constraints_with_activation(Layer<T>* current_layer, Layer<T>*
         ZKgeneralTruncAny(current_layer->party, constant_terms, constant_terms, current_layer->output_size, FXPSCALE);
 
         for(int i = 0; i < current_layer->output_size; i++){
+            if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                continue;
+            }
             new_backsubstituted_upper_constraints[(i + 1) * (prev_layer->input_size + 1) - 1] = new_backsubstituted_upper_constraints[(i + 1) * (prev_layer->input_size + 1) - 1] +
                                                                                                 constant_terms[i];
         }

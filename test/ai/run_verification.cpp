@@ -123,7 +123,7 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   auto start = clock_start();
   if(base_example != -1){
     test_examples = vector<int>(num_examples);
-    std::iota(test_examples.begin(), test_examples.end(), base_example);
+    std::iota(test_examples.begin(), test_examples.end(), base_example+1);
   }
   num_examples = test_examples.size();
   
@@ -131,9 +131,34 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
     int i = j-1;
 
 
-    verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
-    cerr << model_float->skip_map.size() << "\n";
+    auto res = verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
     model_field->skip_map = model_float->skip_map;
+
+    model_field->skip_map = {};
+    (model_field->skip_map)[2]  = new std::set<int>();
+    (model_field->skip_map)[4]  = new std::set<int>();
+    (model_field->skip_map)[6]  = new std::set<int>();
+
+    (model_field->skip_map)[8]  = new std::set<int>{
+        1, 3, 5, 8, 9, 10, 12, 16, 17, 18, 20, 21, 23, 26, 27,
+        32, 34, 35, 37, 39, 40, 42, 45, 46, 49, 50, 52, 53, 54,
+        55, 57, 58, 61, 62, 64, 71, 74, 75, 77, 80, 85, 86,
+        88, 90, 91, 97, 99
+    };
+
+    (model_field->skip_map)[10] = new std::set<int>{
+        13, 15, 20, 23, 24, 32, 37, 38, 39, 41, 47, 54, 55,
+        58, 60, 61, 67, 73, 75, 76, 82, 93, 94
+    };
+
+    (model_field->skip_map)[12] = new std::set<int>();
+
+    if(party == BOB){
+      for(int l = 2; l <= 12; l += 2){
+        cerr << model_field->skip_map[l]->size() << " ";
+      }
+      cerr << "\n";
+    }
     
     auto result = verify_example<IntFp>(model_field, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
     bool classified = result.first;

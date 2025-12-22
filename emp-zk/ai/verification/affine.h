@@ -58,6 +58,7 @@ class Affine : public Layer<T> {
 
         this->lower_diff = new float[this->output_size]{0};
         this->upper_diff = new float[this->output_size]{0};
+        this->skippable_neurons = new set<int>();
     }
 
     void forward(Layer<T>* input_layer, Layer<T>* prev_layer, bool do_inference = true){
@@ -95,7 +96,8 @@ class Affine : public Layer<T> {
             
             if constexpr (std::is_same<float, T>::value){
                 this->analyse_and_unset_bs_bounds();
-            }       
+            }
+            
         }
 
         if(do_inference){

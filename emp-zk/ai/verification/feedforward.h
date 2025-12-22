@@ -175,7 +175,7 @@ class VerifiableFeedForwardNeuralNetwork {
             ((Layer<T>*) this->layers[i])->reset();
         }
         if(std::is_same<T, float>::value){
-            this->skip_map.clear();
+            this->skip_map = {};
         }
     }
 
@@ -192,7 +192,6 @@ class VerifiableFeedForwardNeuralNetwork {
             layers[i]->layer_num = i+1;
 
             if(std::is_same<T, IntFp>::value && layers[i]->type == AFFINE && this->skip_map.count(layers[i]->layer_num)){
-                cerr << "hello\n";
                 ((Affine<T>*) layers[i])->skippable_neurons = this->skip_map[layers[i]->layer_num];
             }
 
