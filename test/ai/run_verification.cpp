@@ -134,6 +134,7 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
 
     auto res = verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
     model_field->skip_map = model_float->skip_map;
+    model_field->skip_map2 = model_float->skip_map2;
 
 
     if(party == ALICE){
@@ -148,6 +149,19 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
               out << " " << v;
           }
           out << "\n";
+      }
+
+      std::ofstream out2("test/ai/data/temp2.txt");
+      if (!out2) {
+          throw std::runtime_error("Failed to open file for writing");
+      }
+
+      for (const auto& [key, values] : model_field->skip_map2) {
+          out2 << key << ":";
+          for (int v : *values) {
+              out2 << " " << v;
+          }
+          out2 << "\n";
       }
     } else {
       std::ifstream in("test/ai/data/temp.txt");
@@ -173,6 +187,30 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
           }
 
           model_field->skip_map[key] = std::move(values);
+      }
+
+
+      std::ifstream in2("test/ai/data/temp2.txt");
+      if (!in2) {
+          throw std::runtime_error("Failed to open file for reading");
+      }
+
+      while (std::getline(in2, line)) {
+          if (line.empty()) continue;
+
+          std::stringstream ss(line);
+          int key;
+          char colon;
+
+          ss >> key >> colon; // reads "key:"
+
+          auto* values = new std::set<int>();
+          int v;
+          while (ss >> v) {
+              values->insert(v);
+          }
+
+          model_field->skip_map2[key] = std::move(values);
       }
     }
     

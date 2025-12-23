@@ -55,6 +55,7 @@ class VerifiableFeedForwardNeuralNetwork {
 
     stats* savings_stats;
     map<int, set<int>*> skip_map;
+    map<int, set<int>*> skip_map2;
 
     VerifiableFeedForwardNeuralNetwork(int num_layers, Layer<T>** layers, int party = PUBLIC){
         this->num_layers = num_layers;
@@ -176,6 +177,7 @@ class VerifiableFeedForwardNeuralNetwork {
         }
         if(std::is_same<T, float>::value){
             this->skip_map = {};
+            this->skip_map2 = {};
         }
     }
 
@@ -193,6 +195,7 @@ class VerifiableFeedForwardNeuralNetwork {
 
             if(std::is_same<T, IntFp>::value && layers[i]->type == AFFINE && this->skip_map.count(layers[i]->layer_num)){
                 ((Affine<T>*) layers[i])->skippable_neurons = this->skip_map[layers[i]->layer_num];
+                ((Affine<T>*) layers[i])->skippable_neurons2 = this->skip_map2[layers[i]->layer_num];
             }
 
             layers[i]->forward(input_layer, prev_layer, do_inference);
@@ -203,9 +206,10 @@ class VerifiableFeedForwardNeuralNetwork {
                 int m = ((Affine<T>*) layers[i])->output_size;
                 total_neurons += m;
 
-                savings += ((Affine<T>*) layers[i])->neurons_saved * (i/2 * (m*m + m));
+                savings += ((Affine<T>*) layers[i])->neurons_saved * (i/2 * (m*m + m)) + ((Affine<T>*) layers[i])->skippable_neurons2->size() * ((i-2)/2 * (m*m + m));
 
                 this->skip_map[layers[i]->layer_num] = ((Affine<T>*) layers[i])->skippable_neurons;
+                this->skip_map2[layers[i]->layer_num] = ((Affine<T>*) layers[i])->skippable_neurons2;
             }
         }
         this->savings_stats->new_example(example_num, savings);

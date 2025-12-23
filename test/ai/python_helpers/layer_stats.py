@@ -178,7 +178,15 @@ def plot_histograms(layer_data):
         plt.tight_layout()
         
         # Save individual figure
-        filename = f'layer_{layer_num}_diff_histogram.png'
+        
+        import os
+        dirpath = f'test/ai/data/histograms/{model}/'
+        try:
+            os.makedirs(dirpath, exist_ok=False)
+        except:
+            pass
+        
+        filename = f'test/ai/data/histograms/{model}/layer_{layer_num}_diff_histogram.png'
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         saved_files.append(filename)
         print(f"Saved: {filename}")
@@ -218,9 +226,12 @@ def print_statistics(layer_data):
             print(f"    Min:   {np.min(upper_diff):.6f}")
             print(f"    Max:   {np.max(upper_diff):.6f}")
 
+
+model = 'mnist_relu_6_100'
+
 def main():
     # Specify your input file
-    filename = 'test/ai/data/logs/mnist_relu_9_200/mnist_relu_9_200_float_worker_1.txt'  # Change this to your file path
+    filename = f'test/ai/data/logs/{model}/{model}_float_worker_1.txt'  # Change this to your file path
     
     print(f"Reading data from '{filename}'...")
     

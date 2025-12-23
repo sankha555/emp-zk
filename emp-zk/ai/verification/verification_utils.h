@@ -240,6 +240,10 @@ vector<int> read_exp_specs(
         BS_WAIVER_THRESHOLDS = config["bs_waiver_thresholds"];
     }
 
+    if(config.contains("bs_waiver_thresholds2")){
+        BS_WAIVER_THRESHOLDS2 = config["bs_waiver_thresholds2"];
+    }
+
     return layer_specs;
 }
 

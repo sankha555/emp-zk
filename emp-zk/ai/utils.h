@@ -24,6 +24,7 @@ bool DO_DP_BS = true;
 int BS_MODE = 0;    // 0 = no backsubstitution, 1 = DP_BS, 2 = Sankha BS
 float BS_WAIVER_FRACTION = 0.3;
 map<string, float> BS_WAIVER_THRESHOLDS;
+map<string, float> BS_WAIVER_THRESHOLDS2;
 
 IntFp FIELD_ZERO;
 IntFp FIELD_ONE;
