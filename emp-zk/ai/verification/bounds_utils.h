@@ -17,14 +17,14 @@ using namespace emp;
 template <typename T>
 void backsubstitute_lc_using_prev_affine(Layer<T>* current_layer, Layer<T>* prev_activation, Layer<T>* prev_affine, Layer<T>* input_layer, set<int> neuron_list = {}){
 
-    T* new_backsubstituted_lower_constraints = new T[current_layer->output_size * (NUM_FEATURES[CURR_DATASET] + 1) ];
-
     if(neuron_list.size() == 0){
         neuron_list = set<int>();
         for(int i = 0; i < current_layer->output_size; i++){
             neuron_list.insert(i);
         }
     }
+
+    T* new_backsubstituted_lower_constraints = new T[neuron_list.size() * (NUM_FEATURES[CURR_DATASET] + 1) ];
 
     if constexpr (std::is_same<IntFp, T>::value && SECURE){
 
@@ -45,7 +45,7 @@ void backsubstitute_lc_using_prev_affine(Layer<T>* current_layer, Layer<T>* prev
             for(int j = 0; j < prev_affine->output_size; j++){
                 coeff_sign[j + prev_affine->output_size] = FIELD_ONE + coeff_sign[j].negate();
             }
-
+            cerr << "time cmp = " << time_from(start_time)*1.0/1e6 << " s\n";
             
             // activation contribution
             for(int j = 0; j < prev_affine->output_size; j++){
@@ -63,12 +63,13 @@ void backsubstitute_lc_using_prev_affine(Layer<T>* current_layer, Layer<T>* prev
                 prev_layer_term + prev_activation->output_size,
                 current_layer->party
             );
+            cerr << "time act const. = " << time_from(start_time)*1.0/1e6 << " s\n";
 
 
             // affine contribution
             for(int j = 0; j < prev_affine->output_size; j++){
-                prev_layer_term[j]                            = coeff_sign[j]                            * prev_activation->lower_constraints[j * 2 + 0] * prev_affine->backsubstituted_lower_constraints[(j + 1) * (NUM_FEATURES[CURR_DATASET] + 1) - 1];
-                prev_layer_term[j + prev_affine->output_size] = coeff_sign[j + prev_affine->output_size] * prev_activation->upper_constraints[j * 2 + 0] * prev_affine->backsubstituted_upper_constraints[(j + 1) * (NUM_FEATURES[CURR_DATASET] + 1) - 1];
+                prev_layer_term[j]                            = coeff_sign[j]                            * inner_product_bundle(1, prev_activation->lower_constraints + j * 2, prev_affine->backsubstituted_lower_constraints + (j + 1) * (NUM_FEATURES[CURR_DATASET] + 1) - 1, current_layer->party);
+                prev_layer_term[j + prev_affine->output_size] = coeff_sign[j + prev_affine->output_size] * inner_product_bundle(1, prev_activation->upper_constraints + j * 2, prev_affine->backsubstituted_upper_constraints + (j + 1) * (NUM_FEATURES[CURR_DATASET] + 1) - 1, current_layer->party);
             }
             ZKgeneralTruncAny(current_layer->party, prev_layer_term, prev_layer_term, 2 * prev_affine->output_size, FXPSCALE);
 
@@ -83,18 +84,21 @@ void backsubstitute_lc_using_prev_affine(Layer<T>* current_layer, Layer<T>* prev
                 prev_layer_term + prev_activation->output_size,
                 current_layer->party
             );
-
+            cerr << "time aff const. = " << time_from(start_time)*1.0/1e6 << " s\n";
 
             /* =========== NON-CONSTANT TERMS =========== */
             for(int k = 0; k < (NUM_FEATURES[CURR_DATASET]); k++){
 
                 for(int j = 0; j < prev_affine->output_size; j++){
-                    prev_layer_term[j]                            = coeff_sign[j]                            * prev_activation->lower_constraints[j * 2 + 0] * prev_affine->backsubstituted_lower_constraints[j * (NUM_FEATURES[CURR_DATASET] + 1) + k];
-                    prev_layer_term[j + prev_affine->output_size] = coeff_sign[j + prev_affine->output_size] * prev_activation->upper_constraints[j * 2 + 0] * prev_affine->backsubstituted_upper_constraints[j * (NUM_FEATURES[CURR_DATASET] + 1) + k];
+                    // prev_layer_term[j]                            = coeff_sign[j]                            * prev_activation->lower_constraints[j * 2 + 0] * prev_affine->backsubstituted_lower_constraints[j * (NUM_FEATURES[CURR_DATASET] + 1) + k];
+                    // prev_layer_term[j + prev_affine->output_size] = coeff_sign[j + prev_affine->output_size] * prev_activation->upper_constraints[j * 2 + 0] * prev_affine->backsubstituted_upper_constraints[j * (NUM_FEATURES[CURR_DATASET] + 1) + k];
+
+                    prev_layer_term[j]                            = coeff_sign[j]                            * inner_product_bundle(1, prev_activation->lower_constraints + j * 2, prev_affine->backsubstituted_lower_constraints + j * (NUM_FEATURES[CURR_DATASET] + 1) + k, current_layer->party);
+                    prev_layer_term[j + prev_affine->output_size] = coeff_sign[j + prev_affine->output_size] * inner_product_bundle(1, prev_activation->upper_constraints + j * 2, prev_affine->backsubstituted_upper_constraints + j * (NUM_FEATURES[CURR_DATASET] + 1) + k, current_layer->party);
                 }
                 ZKgeneralTruncAny(current_layer->party, prev_layer_term, prev_layer_term, 2 * prev_affine->output_size, FXPSCALE);
 
-                new_backsubstituted_lower_constraints[i * (NUM_FEATURES[CURR_DATASET] + 1) + k] = inner_product_bundle(
+                new_backsubstituted_lower_constraints[n * (NUM_FEATURES[CURR_DATASET] + 1) + k] = inner_product_bundle(
                     prev_activation->output_size,
                     current_layer->lower_constraints + i * current_layer->max_coeffs,
                     prev_layer_term,
@@ -118,21 +122,26 @@ void backsubstitute_lc_using_prev_affine(Layer<T>* current_layer, Layer<T>* prev
         }
 
         ZKgeneralTruncAny(current_layer->party, constant_terms, constant_terms, 2 * neuron_list.size(), FXPSCALE);
+        cerr << "time non-const. = " << time_from(start_time)*1.0/1e6 << " s\n";
 
         n = 0;
         for(int i : neuron_list){
-            new_backsubstituted_lower_constraints[(i + 1)* (NUM_FEATURES[CURR_DATASET] + 1) - 1] = constant_terms[n * 2 + 0] + constant_terms[n * 2 + 1] +
+            new_backsubstituted_lower_constraints[(n + 1)* (NUM_FEATURES[CURR_DATASET] + 1) - 1] = constant_terms[n * 2 + 0] + constant_terms[n * 2 + 1] +
                                                                                                    current_layer->lower_constraints[(i + 1) * current_layer->max_coeffs - 1];
 
             n++;
         }
 
+        n = 0;
         for(int i : neuron_list){
             for(int j = 0; j < (NUM_FEATURES[CURR_DATASET] + 1); j++){
-                current_layer->backsubstituted_lower_constraints[i * (NUM_FEATURES[CURR_DATASET] + 1) + j] = new_backsubstituted_lower_constraints[i * (NUM_FEATURES[CURR_DATASET] + 1) + j];
+                current_layer->backsubstituted_lower_constraints[i * (NUM_FEATURES[CURR_DATASET] + 1) + j] = new_backsubstituted_lower_constraints[n * (NUM_FEATURES[CURR_DATASET] + 1) + j];
             }
+
+            n++;
         }
         delete[] new_backsubstituted_lower_constraints;
+        cerr << "time final rearr = " << time_from(start_time)*1.0/1e6 << " s\n";
 
 
         delete[] coeff_sign;
@@ -269,8 +278,6 @@ void backsubstitute_lc_using_prev_affine(Layer<T>* current_layer, Layer<T>* prev
 template <typename T>
 void backsubstitute_uc_using_prev_affine(Layer<T>* current_layer, Layer<T>* prev_activation, Layer<T>* prev_affine, Layer<T>* input_layer, set<int> neuron_list = {}){
 
-    T* new_backsubstituted_upper_constraints = new T[current_layer->output_size * (NUM_FEATURES[CURR_DATASET] + 1) ];
-
     if(neuron_list.size() == 0){
         neuron_list = set<int>();
         for(int i = 0; i < current_layer->output_size; i++){
@@ -278,6 +285,7 @@ void backsubstitute_uc_using_prev_affine(Layer<T>* current_layer, Layer<T>* prev
         }
     }
 
+    T* new_backsubstituted_upper_constraints = new T[neuron_list.size() * (NUM_FEATURES[CURR_DATASET] + 1) ];
 
     if constexpr (std::is_same<IntFp, T>::value && SECURE){
 
@@ -320,8 +328,8 @@ void backsubstitute_uc_using_prev_affine(Layer<T>* current_layer, Layer<T>* prev
 
             // affine contribution
             for(int j = 0; j < prev_affine->output_size; j++){
-                prev_layer_term[j]                            = coeff_sign[j]                            * prev_activation->upper_constraints[j * 2 + 0] * prev_affine->backsubstituted_upper_constraints[(j + 1) * (NUM_FEATURES[CURR_DATASET] + 1) - 1];
-                prev_layer_term[j + prev_affine->output_size] = coeff_sign[j + prev_affine->output_size] * prev_activation->lower_constraints[j * 2 + 0] * prev_affine->backsubstituted_lower_constraints[(j + 1) * (NUM_FEATURES[CURR_DATASET] + 1) - 1];
+                prev_layer_term[j]                            = coeff_sign[j]                            * inner_product_bundle(1, prev_activation->upper_constraints + j * 2, prev_affine->backsubstituted_upper_constraints + (j + 1) * (NUM_FEATURES[CURR_DATASET] + 1) - 1, current_layer->party);
+                prev_layer_term[j + prev_affine->output_size] = coeff_sign[j + prev_affine->output_size] * inner_product_bundle(1, prev_activation->lower_constraints + j * 2, prev_affine->backsubstituted_lower_constraints + (j + 1) * (NUM_FEATURES[CURR_DATASET] + 1) - 1, current_layer->party);
             }
             ZKgeneralTruncAny(current_layer->party, prev_layer_term, prev_layer_term, 2 * prev_affine->output_size, FXPSCALE);
 
@@ -342,12 +350,15 @@ void backsubstitute_uc_using_prev_affine(Layer<T>* current_layer, Layer<T>* prev
             for(int k = 0; k < (NUM_FEATURES[CURR_DATASET]); k++){
 
                 for(int j = 0; j < prev_affine->output_size; j++){
-                    prev_layer_term[j]                            = coeff_sign[j]                            * prev_activation->upper_constraints[j * 2 + 0] * prev_affine->backsubstituted_upper_constraints[j * (NUM_FEATURES[CURR_DATASET] + 1) + k];
-                    prev_layer_term[j + prev_affine->output_size] = coeff_sign[j + prev_affine->output_size] * prev_activation->lower_constraints[j * 2 + 0] * prev_affine->backsubstituted_lower_constraints[j * (NUM_FEATURES[CURR_DATASET] + 1) + k];
+                    // prev_layer_term[j]                            = coeff_sign[j]                            * prev_activation->lower_constraints[j * 2 + 0] * prev_affine->backsubstituted_lower_constraints[j * (NUM_FEATURES[CURR_DATASET] + 1) + k];
+                    // prev_layer_term[j + prev_affine->output_size] = coeff_sign[j + prev_affine->output_size] * prev_activation->upper_constraints[j * 2 + 0] * prev_affine->backsubstituted_upper_constraints[j * (NUM_FEATURES[CURR_DATASET] + 1) + k];
+
+                    prev_layer_term[j]                            = coeff_sign[j]                            * inner_product_bundle(1, prev_activation->upper_constraints + j * 2, prev_affine->backsubstituted_upper_constraints + j * (NUM_FEATURES[CURR_DATASET] + 1) + k, current_layer->party);
+                    prev_layer_term[j + prev_affine->output_size] = coeff_sign[j + prev_affine->output_size] * inner_product_bundle(1, prev_activation->lower_constraints + j * 2, prev_affine->backsubstituted_lower_constraints + j * (NUM_FEATURES[CURR_DATASET] + 1) + k, current_layer->party);
                 }
                 ZKgeneralTruncAny(current_layer->party, prev_layer_term, prev_layer_term, 2 * prev_affine->output_size, FXPSCALE);
 
-                new_backsubstituted_upper_constraints[i * (NUM_FEATURES[CURR_DATASET] + 1) + k] = inner_product_bundle(
+                new_backsubstituted_upper_constraints[n * (NUM_FEATURES[CURR_DATASET] + 1) + k] = inner_product_bundle(
                     prev_activation->output_size,
                     current_layer->upper_constraints + i * current_layer->max_coeffs,
                     prev_layer_term,
@@ -374,16 +385,19 @@ void backsubstitute_uc_using_prev_affine(Layer<T>* current_layer, Layer<T>* prev
 
         n = 0;
         for(int i : neuron_list){
-            new_backsubstituted_upper_constraints[(i + 1)* (NUM_FEATURES[CURR_DATASET] + 1) - 1] = constant_terms[n * 2 + 0] + constant_terms[n * 2 + 1] +
+            new_backsubstituted_upper_constraints[(n + 1)* (NUM_FEATURES[CURR_DATASET] + 1) - 1] = constant_terms[n * 2 + 0] + constant_terms[n * 2 + 1] +
                                                                                                    current_layer->upper_constraints[(i + 1) * current_layer->max_coeffs - 1];
 
             n++;
         }
 
+        n = 0;
         for(int i : neuron_list){
             for(int j = 0; j < (NUM_FEATURES[CURR_DATASET] + 1); j++){
-                current_layer->backsubstituted_upper_constraints[i * (NUM_FEATURES[CURR_DATASET] + 1) + j] = new_backsubstituted_upper_constraints[i * (NUM_FEATURES[CURR_DATASET] + 1) + j];
+                current_layer->backsubstituted_upper_constraints[i * (NUM_FEATURES[CURR_DATASET] + 1) + j] = new_backsubstituted_upper_constraints[n * (NUM_FEATURES[CURR_DATASET] + 1) + j];
             }
+
+            n++;
         }
         delete[] new_backsubstituted_upper_constraints;
 

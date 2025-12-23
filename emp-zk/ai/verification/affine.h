@@ -378,7 +378,9 @@ class Affine : public Layer<T> {
             if(this->layer_num > 2 && this->skippable_neurons2->size() > 0){
                 cerr << "Layer " << this->layer_num << "\n";
                 backsubstitute_lc_using_prev_affine(this, this->prev_layer, this->prev_layer->prev_layer, input_layer, *this->skippable_neurons2);
+                cerr << "time = " << time_from(start_time)*1.0/1e6 << " s\n";
                 backsubstitute_uc_using_prev_affine(this, this->prev_layer, this->prev_layer->prev_layer, input_layer, *this->skippable_neurons2);
+                cerr << "time = " << time_from(start_time)*1.0/1e6 << " s\n";
             }
 
         }
