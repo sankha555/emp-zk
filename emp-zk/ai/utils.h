@@ -38,12 +38,15 @@ bool ONLY_INFERENCE = 0;
 enum LAYER_TYPE{INPUT, AFFINE, CONV2D, RELU, OUTPUT};
 enum TEST_MODE{CLTFLOAT, CLTFXP, SECUREMODE};
 
-enum DATASETS{MNIST, CIFAR10, TOY};
-int NUM_FEATURES[] = {784, 3072, 2};
+enum DATASETS{MNIST, CIFAR10, TOY, ADULT, CREDIT, GERMAN};
+int NUM_FEATURES[] = {784, 3072, 2, 14, 23, 20};
 int CURR_DATASET = DATASETS::MNIST;
 
 float INPUT_MIN = -1e9;
 float INPUT_MAX = 1e9;
+
+// fairness
+set<int> sensitive_attrs;
 
 time_point<high_resolution_clock> start_time;
 

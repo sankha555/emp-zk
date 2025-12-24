@@ -124,6 +124,12 @@ class VerifiableFeedForwardNeuralNetwork {
 
         float* raw_lb = new float[input_layer->input_size];
         for(int i = 0; i < input_layer->input_size; i++){
+
+            if(sensitive_attrs.count(i)){
+                raw_lb[i] = raw_inputs[i];
+                continue;
+            }
+
             raw_lb[i] = raw_inputs[i] - epsilon;
             if(raw_lb[i] < INPUT_MIN){
                 raw_lb[i] = INPUT_MIN;
@@ -136,6 +142,12 @@ class VerifiableFeedForwardNeuralNetwork {
 
         float* raw_ub = new float[input_layer->input_size];
         for(int i = 0; i < input_layer->input_size; i++){
+
+            if(sensitive_attrs.count(i)){
+                raw_ub[i] = raw_inputs[i];
+                continue;
+            }
+
             raw_ub[i] = raw_inputs[i] + epsilon;
             if(raw_ub[i] < INPUT_MIN){
                 raw_ub[i] = INPUT_MIN;
@@ -222,10 +234,6 @@ class VerifiableFeedForwardNeuralNetwork {
     }
 
     void describe(bool print_parameters = true, bool print_expressions = false){
-        if(this->party == BOB){
-            return;
-        }
-        
         for(int i = 0; i < num_layers; i++){
             cout << "LAYER " << (i+1) << "\n";
             layers[i]->describe(print_parameters, print_expressions);

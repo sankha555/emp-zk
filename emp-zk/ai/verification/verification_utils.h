@@ -159,6 +159,21 @@ vector<int> read_exp_specs(
         CURR_DATASET = DATASETS::CIFAR10;
         INPUT_FILE_PATH = "test/ai/data/inputs/cifar10_test_nonconv_" + to_string(worker_id) + ".txt";
 
+    } else if(model_name.compare(0, 5, "adult") == 0) {
+        cerr << model_name << "\n";
+        CURR_DATASET = DATASETS::ADULT;
+        INPUT_FILE_PATH = "test/ai/data/inputs/adult_test_" + to_string(worker_id) + ".txt";
+
+    } else if(model_name.compare(0, 6, "credit") == 0) {
+        cerr << model_name << "\n";
+        CURR_DATASET = DATASETS::CREDIT;
+        INPUT_FILE_PATH = "test/ai/data/inputs/credit_test_" + to_string(worker_id) + ".txt";
+
+    } else if(model_name.compare(0, 6, "german") == 0) {
+        cerr << model_name << "\n";
+        CURR_DATASET = DATASETS::GERMAN;
+        INPUT_FILE_PATH = "test/ai/data/inputs/german_test_" + to_string(worker_id) + ".txt";
+
     } else {
         CURR_DATASET = DATASETS::TOY;
         INPUT_FILE_PATH = "test/ai/data/inputs/toy" + to_string(worker_id) + ".txt";
@@ -238,6 +253,14 @@ vector<int> read_exp_specs(
 
     if(config.contains("bs_waiver_thresholds")){
         BS_WAIVER_THRESHOLDS = config["bs_waiver_thresholds"];
+    }
+
+    if(config.contains("sensitive_attrs")){
+        sensitive_attrs.clear();
+        vector<int> sens_attr = config["sensitive_attrs"];
+        for(int i : sens_attr){
+            sensitive_attrs.insert(i);
+        }
     }
 
     return layer_specs;

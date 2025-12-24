@@ -391,9 +391,7 @@ class Affine : public Layer<T> {
     }
 
     void describe(bool print_parameters = true, bool print_expressions = false){
-        if(this->party == BOB){
-            return;
-        }
+        
         cout << "Type: " << get_layer_type(this->type) << "[" << this->layer_num << "]" << "\n";
         if(print_parameters){
             cout << "Parameters:\n";
