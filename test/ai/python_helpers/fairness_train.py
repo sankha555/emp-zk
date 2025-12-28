@@ -164,12 +164,11 @@ class CustomNN(nn.Module):
         
         
         layers = [
-            nn.Linear(input_size, 50),
+            nn.Linear(input_size, 8),
             nn.ReLU(),
-            nn.Linear(50, 50),
+            nn.Linear(8, 2),
             nn.ReLU(),
-            nn.Linear(50, 2),
-            nn.ReLU()
+            nn.Linear(2, 2),
         ]
         self.model = nn.Sequential(*layers)
     
@@ -348,12 +347,13 @@ def train_on_dataset(dataset_name, X, y, hidden_layers, num_epochs=100,
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
     # Initialize model
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cpu')
     model = CustomNN(X.shape[1], hidden_layers, output_size=2)
     
     # Loss and optimizer (CrossEntropyLoss for 2-class classification)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate, weight_decay=0.2)
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 0)
     
     # Train model
     print("Training started...")
@@ -423,9 +423,9 @@ def main():
     hidden_layers = [128, 64, 32]  # Example: 3 hidden layers
     
     # Training parameters
-    num_epochs = 100
+    num_epochs = 10
     batch_size = 64
-    learning_rate = 0.01
+    learning_rate = 0.1
     
     results = {}
     

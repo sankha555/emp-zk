@@ -14,11 +14,11 @@
         
         ["OUTPUT", 2, 2, -1]
     ],
-    "epsilon": 13,
+    "epsilon": 1,
     "input_min": -1e9,
     "input_max": 1e9,
-    "do_float": 0,
-    "FXPSCALE": 24,
+    "do_float": 2,
+    "FXPSCALE": 20,
     "examples": [],
     "sensitive_attrs": [2]
 }

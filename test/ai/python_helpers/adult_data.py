@@ -43,8 +43,8 @@ def load_and_preprocess_adult(filepath='adult.csv', save_scaler=True):
     
     # Standardize features (subtract mean, divide by std)
     scaler = StandardScaler()
-    # X_scaled = scaler.fit_transform(X)
-    X_scaled = X
+    X_scaled = scaler.fit_transform(X)
+    X_scaled = X_scaled
     
     # Save preprocessing info if requested
     # if save_scaler:

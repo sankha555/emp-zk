@@ -15,7 +15,7 @@
         
         ["OUTPUT", 2, 2, -1]
     ],
-    "epsilon": 10,
+    "epsilon": 0.5,
     "input_min": -1e9,
     "input_max": 1e9,
     "do_float": 2,
