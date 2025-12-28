@@ -34,7 +34,7 @@
         ["OUTPUT", 10, 10, -1]
     ],
     "epsilon": 0.01,
-    "do_float": 2,
+    "do_float": 0,
     "input_min": 0,
     "input_max": 1,
     "FXPSCALE": 20,
