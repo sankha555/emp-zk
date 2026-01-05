@@ -22,6 +22,7 @@ class Affine : public Layer<T> {
     public:
 
     ParametersVerification<T>* param;
+    ParametersVerification<T>* param_up;
     
     int* pred_neuron_ids;
 
@@ -38,6 +39,7 @@ class Affine : public Layer<T> {
         this->input = new T[input_size+1];  // +1 for bias
         this->output = new T[output_size];
         this->param = new ParametersVerification<T>(output_size, input_size, party);
+        this->param_up = new ParametersVerification<T>(output_size, input_size, party);
         this->type = LAYER_TYPE::AFFINE;
 
         this->lower_bounds = new T[output_size];
@@ -387,7 +389,7 @@ class Affine : public Layer<T> {
             delete[] coeff_sign;
 
             // restore the fixed-point scale
-            ZKgeneralTruncAny(this->party, this->upper_bounds, this->upper_bounds, this->output_size, FXPSCALE);
+            ZKgeneralTruncAnyRoundUp(this->party, this->upper_bounds, this->upper_bounds, this->output_size, FXPSCALE);
 
             for(int i = 0; i < this->output_size; i++){
                 this->upper_bounds[i] = this->upper_bounds[i] + this->upper_constraints[(i+1)*this->max_coeffs - 1];    // adding the constant bias term
@@ -420,19 +422,29 @@ class Affine : public Layer<T> {
 
     void compute_lower_constraints(){
         // l_i ≤ x_i ≤ u_i for input layer
-        for(int i = 0; i <  this->output_size; i++){
-            for(int j = 0; j < this->max_coeffs; j++){
-                this->lower_constraints[i*this->max_coeffs + j] = (this->param->param_matrix[i*this->max_coeffs + j]);
+
+        if constexpr (std::is_same<IntFp, T>::value && SECURE){
+            for(int i = 0; i <  this->output_size; i++){
+                for(int j = 0; j < this->max_coeffs; j++){
+                    this->lower_constraints[i*this->max_coeffs + j] = (this->param->param_matrix[i*this->max_coeffs + j]);
+                }
             }
+        } else {
+            cleartext_compute_lower_constraints();
         }
     }
 
     void compute_upper_constraints(){
         // l_i ≤ x_i ≤ u_i for input layer
-        for(int i = 0; i <  this->output_size; i++){
-            for(int j = 0; j < this->max_coeffs; j++){
-                this->upper_constraints[i*this->max_coeffs + j] = (this->param->param_matrix[i*this->max_coeffs + j]);
+        
+        if constexpr (std::is_same<IntFp, T>::value && SECURE){
+            for(int i = 0; i <  this->output_size; i++){
+                for(int j = 0; j < this->max_coeffs; j++){
+                    this->upper_constraints[i*this->max_coeffs + j] = (this->param_up->param_matrix[i*this->max_coeffs + j]);
+                }
             }
+        } else {
+            cleartext_compute_upper_constraints();
         }
     }
 

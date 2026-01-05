@@ -7,22 +7,52 @@
 #include "emp-zk/ai/utils.h"
 
 
-void authenticate_over_field(int sz, float* reals, IntFp* fields, int party){
-    uint64_t unsigned_scaled_real = 0;
-    for(int i = 0; i < sz; i++){
-        if(party == ALICE){
-            int64_t scaled_real = floor(reals[i] * (1ULL << FXPSCALE));
+void authenticate_over_field(int sz, float* reals, IntFp* fields, int party, bool round_up){
+    if (round_up){
+        uint64_t unsigned_scaled_real = 0;
+        for(int i = 0; i < sz; i++){
+            if(party == ALICE){
+                int64_t scaled_real = ceil(reals[i] * (1ULL << FXPSCALE));
 
-            unsigned_scaled_real = (scaled_real >= 0 ? scaled_real : PR + scaled_real);
+                unsigned_scaled_real = (scaled_real >= 0 ? scaled_real : PR + scaled_real);
+            }
+            
+            fields[i] = IntFp(unsigned_scaled_real, ALICE);
         }
-        
-        fields[i] = IntFp(unsigned_scaled_real, ALICE);
+    } else {
+        uint64_t unsigned_scaled_real = 0;
+        for(int i = 0; i < sz; i++){
+            if(party == ALICE){
+                int64_t scaled_real = floor(reals[i] * (1ULL << FXPSCALE));
+
+                unsigned_scaled_real = (scaled_real >= 0 ? scaled_real : PR + scaled_real);
+            }
+            
+            fields[i] = IntFp(unsigned_scaled_real, ALICE);
+        }
     }
     // int64_t x_scale = floor(x * (1ULL << scale));
     // // cout << "x_scale = " << x_scale << endl;
     // uint64_t y = x_scale < 0 ? PR + x_scale : x_scale; 
     // return y;
 }
+
+// void authenticate_over_field(int sz, float* reals, IntFp* fields, int party){
+//     uint64_t unsigned_scaled_real = 0;
+//     for(int i = 0; i < sz; i++){
+//         if(party == ALICE){
+//             int64_t scaled_real = floor(reals[i] * (1ULL << FXPSCALE));
+
+//             unsigned_scaled_real = (scaled_real >= 0 ? scaled_real : PR + scaled_real);
+//         }
+        
+//         fields[i] = IntFp(unsigned_scaled_real, ALICE);
+//     }
+//     // int64_t x_scale = floor(x * (1ULL << scale));
+//     // // cout << "x_scale = " << x_scale << endl;
+//     // uint64_t y = x_scale < 0 ? PR + x_scale : x_scale; 
+//     // return y;
+// }
 
 
 uint64_t cleartext_inner_product_over_field(int sz, IntFp* x, IntFp* y){
@@ -63,6 +93,21 @@ IntFp inner_product_bundle(int sz, IntFp* x, IntFp* y, int party){
 
     return ip_res;
 }
+
+void ZKgeneralTruncAnyRoundUp(int party, IntFp* x, IntFp* y, int dim, int trunclen){
+    // ceil(x) = -floor(-x)
+    
+    for(int i = 0; i < dim; i++){
+        x[i] = x[i].negate();
+    }
+
+    ZKgeneralTruncAny(party, x, y, dim, trunclen);
+
+    for(int i = 0; i < dim; i++){
+        y[i] = y[i].negate();
+    }
+}
+
 
 
 std::pair<IntFp*, IntFp*> relu_bundle(int sz, IntFp* prev_lbs, IntFp* prev_ubs, int party){
@@ -134,7 +179,7 @@ std::pair<IntFp*, IntFp*> relu_bundle2(int sz, IntFp* prev_lbs, IntFp* prev_ubs,
     for(int i = 0; i < sz; i++){
         prod[i] = prev_ubs[i] * prev_lbs[i].negate();
     }
-    ZKgeneralTruncAny(party, prod, prod, sz, FXPSCALE);
+    ZKgeneralTruncAnyRoundUp(party, prod, prod, sz, FXPSCALE);
 
     if(party == ALICE){
         // cleartext coeff computation
@@ -143,8 +188,8 @@ std::pair<IntFp*, IntFp*> relu_bundle2(int sz, IntFp* prev_lbs, IntFp* prev_ubs,
             uint64_t ul_i = HIGH64(prod[i].value);                   // -(u_i * l_i) with restored scale
             uint64_t width_i = HIGH64(width[i].value);               // u_i - l_i
 
-            clt_lamus[i]      = divide<uint64_t>(u_i, width_i);      // lambda
-            clt_lamus[i + sz] = divide<uint64_t>(ul_i, width_i);     // mu
+            clt_lamus[i]      = divide<uint64_t>(u_i, width_i, true);      // lambda
+            clt_lamus[i + sz] = divide<uint64_t>(ul_i, width_i, true);     // mu
         }
     }
 

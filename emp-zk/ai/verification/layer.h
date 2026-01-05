@@ -79,12 +79,12 @@ class Layer {
         if constexpr (std::is_same<T, float>::value){
             for(int i = 0; i < this->output_size; i++){
                 if(!(lower_bounds[i] <= output[i] && output[i] <= upper_bounds[i])){
-                    cerr << "l <= x <= u fails for neuron "+to_string(i+1)+" layer "+to_string(layer_num)+"\n";
+                    cerr << "l <= x <= u fails for neuron "+to_string(i+1)+" layer "+to_string(layer_num) << ": " << lower_bounds[i] << " " << output[i] << " " << upper_bounds[i] << "\n";
                     exit(0); 
                 }   
 
                 if(this->type == AFFINE && this->diff[i] < 0){
-                    cerr << "delta(u - l) >= 0 fails for neuron "+to_string(i+1)+" layer "+to_string(layer_num)+"\n";
+                    cerr << "delta(u - l) >= 0 fails for neuron "+to_string(i+1)+" layer "+to_string(layer_num) << ": " << diff[i] << "\n";
                     exit(0); 
                 }
             }

@@ -145,7 +145,7 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   for(int j : test_examples){
     int i = j-1;
 
-    auto res = verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
+    // auto res = verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
     model_field->skip_map = model_float->skip_map;
     model_field->skip_map2 = model_float->skip_map2;
 
@@ -252,7 +252,7 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
       if(party == ALICE)   cout << (verified ? "YES" : "NO") << "\n";
     }
 
-    // model_field->describe(false, true);
+    // model_field->describe(false, false);
   }
 
 

@@ -35,12 +35,12 @@ class ParametersVerification {
     }
 
 
-    void read_weights_and_biases(const char* filepath, int offset){
-        read_weights(filepath, offset);
-        read_biases(filepath, offset + m*n);
+    void read_weights_and_biases(const char* filepath, int offset, bool round_up){
+        read_weights(filepath, offset, round_up);
+        read_biases(filepath, offset + m*n, round_up);
     }
 
-    void read_weights(const char* filepath, int offset){
+    void read_weights(const char* filepath, int offset, bool round_up){
         float* raw_weights = new float[m*n];
         if(this->party != BOB){
             read_next_elements(m*n, raw_weights, offset, filepath);
@@ -48,7 +48,7 @@ class ParametersVerification {
 
         if constexpr (std::is_same<T, IntFp>::value){
             IntFp* temp_weights = new IntFp[m*n];
-            authenticate_over_field(m*n, raw_weights, temp_weights, this->party);
+            authenticate_over_field(m*n, raw_weights, temp_weights, this->party, round_up);
             
             for(int i = 0; i < m; i++){
                 for(int j = 0; j < n; j++){
@@ -69,7 +69,7 @@ class ParametersVerification {
         delete[] raw_weights;
     }
 
-    void read_biases(const char* filepath, int offset){
+    void read_biases(const char* filepath, int offset, bool round_up){
         float* raw_biases = new float[m];
 
         if(this->party != BOB){
@@ -78,7 +78,7 @@ class ParametersVerification {
 
         if constexpr (std::is_same<T, IntFp>::value){
             IntFp* temp_biases = new IntFp[m];
-            authenticate_over_field(m, raw_biases, temp_biases, this->party);
+            authenticate_over_field(m, raw_biases, temp_biases, this->party, round_up);
 
             for(int i = 0; i < m; i++){
                 param_matrix[(i+1)*n + i] = temp_biases[i];
@@ -148,7 +148,7 @@ class Kernel2D {
         return out_c * in_c * h * w;
     }
 
-    void read_filters(const char* filepath, int offset){
+    void read_filters(const char* filepath, int offset, bool round_up){
         float* raw_weights = new float[this->num_parameters()];
         if(this->party != BOB){
             read_next_elements(this->num_parameters(), raw_weights, offset, filepath);
@@ -156,7 +156,7 @@ class Kernel2D {
 
         if constexpr (std::is_same<T, IntFp>::value){
             IntFp* temp_weights = new IntFp[this->num_parameters()];
-            authenticate_over_field(this->num_parameters(), raw_weights, temp_weights, this->party);
+            authenticate_over_field(this->num_parameters(), raw_weights, temp_weights, this->party, round_up);
             
             for(int q = 0; q < this->out_c; q++){
                 // for each out channel

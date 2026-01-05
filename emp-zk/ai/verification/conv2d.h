@@ -38,6 +38,7 @@ class Conv2D : public Layer<T> {
     int out_w;
 
     Kernel2D<T>* kernel;
+    Kernel2D<T>* kernel_up;
     T* pixel_buffer;
 
     int* pred_neuron_ids;
@@ -85,6 +86,7 @@ class Conv2D : public Layer<T> {
 
 
         this->kernel = new Kernel2D<T>(this->out_channels, this->in_channels, this->kernel_h, this->kernel_w, this->party);
+        this->kernel_up = new Kernel2D<T>(this->out_channels, this->in_channels, this->kernel_h, this->kernel_w, this->party);
         this->pixel_buffer = new T[this->in_channels * this->kernel_h * this->kernel_w];
 
         // ai tools
@@ -424,7 +426,7 @@ class Conv2D : public Layer<T> {
 
 
             // restore the fixed-point scale
-            ZKgeneralTruncAny(this->party, this->upper_bounds, this->upper_bounds, this->output_size, FXPSCALE);
+            ZKgeneralTruncAnyRoundUp(this->party, this->upper_bounds, this->upper_bounds, this->output_size, FXPSCALE);
 
             for(int i = 0; i < this->output_size; i++){
                 this->upper_bounds[i] = this->upper_bounds[i] + this->upper_constraints[(i+1)*this->max_coeffs - 1];    // adding the constant bias term
@@ -441,73 +443,81 @@ class Conv2D : public Layer<T> {
 
     void compute_lower_constraints(){
         
-        for(int z = 0; z < this->out_channels; z++){
-            T* mask = this->kernel->get_flattened_weights(z);
+        if constexpr (std::is_same<IntFp, T>::value && SECURE){
 
-            for(int y = 0; y < this->out_h; y++){
-                for(int x = 0; x < this->out_w; x++){
-                    
-                    
-                    int preds = 0;
-                    for(; preds < this->max_coeffs-1; preds++){
+            for(int z = 0; z < this->out_channels; z++){
+                T* mask = this->kernel->get_flattened_weights(z);
+
+                for(int y = 0; y < this->out_h; y++){
+                    for(int x = 0; x < this->out_w; x++){
+                        
+                        
+                        int preds = 0;
+                        for(; preds < this->max_coeffs-1; preds++){
+                            this->lower_constraints[(
+                                z * this->out_h * this->out_w +
+                                y * this->out_w +
+                                x
+                            ) * this->max_coeffs
+                            + preds
+                            ] = mask[preds];
+                        }
+                        
+                        // set bias
                         this->lower_constraints[(
                             z * this->out_h * this->out_w +
                             y * this->out_w +
                             x
                         ) * this->max_coeffs
-                        + preds
-                        ] = mask[preds];
+                            + preds
+                        ] = this->kernel->filter_matrix[
+                            this->kernel->num_weights() + z
+                        ];
                     }
-                    
-                    // set bias
-                    this->lower_constraints[(
-                        z * this->out_h * this->out_w +
-                        y * this->out_w +
-                        x
-                    ) * this->max_coeffs
-                        + preds
-                    ] = this->kernel->filter_matrix[
-                        this->kernel->num_weights() + z
-                    ];
                 }
             }
+        } else {
+            cleartext_compute_lower_constraints();
         }
-        
     }
 
     void compute_upper_constraints(){
-        for(int z = 0; z < this->out_channels; z++){
-            T* mask = this->kernel->get_flattened_weights(z);
+        if constexpr (std::is_same<IntFp, T>::value && SECURE){
 
-            for(int y = 0; y < this->out_h; y++){
-                for(int x = 0; x < this->out_w; x++){
-                    
-                    
-                    int preds = 0;
-                    for(; preds < this->max_coeffs-1; preds++){
+            for(int z = 0; z < this->out_channels; z++){
+                T* mask = this->kernel_up->get_flattened_weights(z);
+
+                for(int y = 0; y < this->out_h; y++){
+                    for(int x = 0; x < this->out_w; x++){
+                        
+                        
+                        int preds = 0;
+                        for(; preds < this->max_coeffs-1; preds++){
+                            this->upper_constraints[(
+                                z * this->out_h * this->out_w +
+                                y * this->out_w +
+                                x
+                            ) * this->max_coeffs
+                            + preds
+                            ] = mask[preds];
+                        }
+                        
+                        // set bias
                         this->upper_constraints[(
                             z * this->out_h * this->out_w +
                             y * this->out_w +
                             x
                         ) * this->max_coeffs
-                        + preds
-                        ] = mask[preds];
+                            + preds
+                        ] = this->kernel->filter_matrix[
+                            this->kernel->num_weights() + z
+                        ];
                     }
-                    
-                    // set bias
-                    this->upper_constraints[(
-                        z * this->out_h * this->out_w +
-                        y * this->out_w +
-                        x
-                    ) * this->max_coeffs
-                        + preds
-                    ] = this->kernel->filter_matrix[
-                        this->kernel->num_weights() + z
-                    ];
                 }
             }
+        } else {
+            cleartext_compute_upper_constraints();
         }
-        
     }
 
 
@@ -788,9 +798,74 @@ class Conv2D : public Layer<T> {
 
 
     void cleartext_compute_lower_constraints(){
+        
+        for(int z = 0; z < this->out_channels; z++){
+            T* mask = this->kernel->get_flattened_weights(z);
+
+            for(int y = 0; y < this->out_h; y++){
+                for(int x = 0; x < this->out_w; x++){
+                    
+                    
+                    int preds = 0;
+                    for(; preds < this->max_coeffs-1; preds++){
+                        this->lower_constraints[(
+                            z * this->out_h * this->out_w +
+                            y * this->out_w +
+                            x
+                        ) * this->max_coeffs
+                        + preds
+                        ] = mask[preds];
+                    }
+                    
+                    // set bias
+                    this->lower_constraints[(
+                        z * this->out_h * this->out_w +
+                        y * this->out_w +
+                        x
+                    ) * this->max_coeffs
+                        + preds
+                    ] = this->kernel->filter_matrix[
+                        this->kernel->num_weights() + z
+                    ];
+                }
+            }
+        }
+        
     }
 
     void cleartext_compute_upper_constraints(){
+        for(int z = 0; z < this->out_channels; z++){
+            T* mask = this->kernel->get_flattened_weights(z);
+
+            for(int y = 0; y < this->out_h; y++){
+                for(int x = 0; x < this->out_w; x++){
+                    
+                    
+                    int preds = 0;
+                    for(; preds < this->max_coeffs-1; preds++){
+                        this->upper_constraints[(
+                            z * this->out_h * this->out_w +
+                            y * this->out_w +
+                            x
+                        ) * this->max_coeffs
+                        + preds
+                        ] = mask[preds];
+                    }
+                    
+                    // set bias
+                    this->upper_constraints[(
+                        z * this->out_h * this->out_w +
+                        y * this->out_w +
+                        x
+                    ) * this->max_coeffs
+                        + preds
+                    ] = this->kernel->filter_matrix[
+                        this->kernel->num_weights() + z
+                    ];
+                }
+            }
+        }
+        
     }
 
     void cleartext_compute_lower_bounds(){
@@ -865,27 +940,6 @@ class Conv2D : public Layer<T> {
         }
 
         delete[] prev_bounds;
-    }
-
-
-
-    
-    void backsubstitute_lower_constraints(int num_inputs){
-        
-    }
-
-
-    void backsubstitute_upper_constraints(int num_inputs){
-        
-    }
-
-    void compute_lower_bounds_after_backsubstitution(Layer<T>* input_layer){
-        
-    }
-
-    void compute_upper_bounds_after_backsubstitution(Layer<T>* input_layer){
-        
-
     }
 
 };

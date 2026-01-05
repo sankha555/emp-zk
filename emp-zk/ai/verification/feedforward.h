@@ -106,10 +106,14 @@ class VerifiableFeedForwardNeuralNetwork {
         for(int k = 0; k < num_layers; k++){
             Layer<T>* curr_layer = layers[k];
             if(curr_layer->type == AFFINE){
-                ((Affine<T>*) curr_layer)->param->read_weights_and_biases(param_file_path, layer_offset);
+                ((Affine<T>*) curr_layer)->param->read_weights_and_biases(param_file_path, layer_offset, false);
+                ((Affine<T>*) curr_layer)->param_up->read_weights_and_biases(param_file_path, layer_offset, true);
+
                 layer_offset += ((Affine<T>*) curr_layer)->param->num_parameters();
             } else if(curr_layer->type == CONV2D){
-                ((Conv2D<T>*) curr_layer)->kernel->read_filters(param_file_path, layer_offset);
+                ((Conv2D<T>*) curr_layer)->kernel->read_filters(param_file_path, layer_offset, false);
+                ((Conv2D<T>*) curr_layer)->kernel_up->read_filters(param_file_path, layer_offset, true);
+
                 layer_offset += ((Conv2D<T>*) curr_layer)->kernel->num_parameters();
             }
         }
@@ -158,10 +162,10 @@ class VerifiableFeedForwardNeuralNetwork {
             
         if constexpr (std::is_same<T, IntFp>::value){
             
-            input_layer->input = convert_reals_to_field_rep(input_layer->input_size, raw_inputs, PUBLIC);
-            input_layer->output = convert_reals_to_field_rep(input_layer->output_size, raw_inputs, PUBLIC);
-            input_layer->lower_bounds = convert_reals_to_field_rep(input_layer->input_size, raw_lb, PUBLIC);
-            input_layer->upper_bounds = convert_reals_to_field_rep(input_layer->input_size, raw_ub, PUBLIC);
+            input_layer->input = convert_reals_to_field_rep(input_layer->input_size, raw_inputs, PUBLIC, false);
+            input_layer->output = convert_reals_to_field_rep(input_layer->output_size, raw_inputs, PUBLIC, false);
+            input_layer->lower_bounds = convert_reals_to_field_rep(input_layer->input_size, raw_lb, PUBLIC, false);
+            input_layer->upper_bounds = convert_reals_to_field_rep(input_layer->input_size, raw_ub, PUBLIC, true);
 
         } else if constexpr (std::is_same<T, float>::value){
             for(int i = 0; i < input_layer->input_size; i++){

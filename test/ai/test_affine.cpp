@@ -115,8 +115,8 @@ void test_affine_secure(BoolIO<NetIO> *ios[threads], int party){
         read_next_elements(sz, W, 0, PARAMS_PATH);
         read_next_elements(sz, x, sz, PARAMS_PATH);
     }
-    authenticate_over_field(sz, W, W_IntFp, party);
-    authenticate_over_field(sz, x, x_IntFp, party);
+    authenticate_over_field(sz, W, W_IntFp, party, false);
+    authenticate_over_field(sz, x, x_IntFp, party, false);
 
     
     IntFp y = inner_product_bundle(sz, W_IntFp, x_IntFp, party);
@@ -162,8 +162,8 @@ void test_relu_secure(BoolIO<NetIO> *ios[threads], int party){
         read_next_elements(sz, lbs, 0, PARAMS_PATH);
         read_next_elements(sz, ubs, sz, PARAMS_PATH);
     }
-    authenticate_over_field(sz, lbs, lbs_IntFp, party);
-    authenticate_over_field(sz, ubs, ubs_IntFp, party);
+    authenticate_over_field(sz, lbs, lbs_IntFp, party, false);
+    authenticate_over_field(sz, ubs, ubs_IntFp, party, false);
 
     
     auto constraints = relu_bundle(sz, lbs_IntFp, ubs_IntFp, party);
@@ -202,8 +202,8 @@ void test_relu2_secure(BoolIO<NetIO> *ios[threads], int party){
         read_next_elements(sz, lbs, 0, PARAMS_PATH);
         read_next_elements(sz, ubs, sz, PARAMS_PATH);
     }
-    authenticate_over_field(sz, lbs, lbs_IntFp, party);
-    authenticate_over_field(sz, ubs, ubs_IntFp, party);
+    authenticate_over_field(sz, lbs, lbs_IntFp, party, false);
+    authenticate_over_field(sz, ubs, ubs_IntFp, party, false);
 
     
     auto constraints = relu_bundle2(sz, lbs_IntFp, ubs_IntFp, party);

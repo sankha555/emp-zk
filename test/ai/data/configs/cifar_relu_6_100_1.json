@@ -30,9 +30,9 @@
     "epsilon": 0.0002,
     "input_min": -10,
     "input_max": 10,
-    "do_float": 0,
+    "do_float": 1,
     "FXPSCALE": 20,
-    "examples": [],
+    "examples": [4, 10, 19, 21, 35, 39, 51, 53, 67, 68, 78, 79, 81, 82, 89, 91, 93],
     "bs_waiver_thresholds": {
         "6": 7.0,
         "8": 7.0,

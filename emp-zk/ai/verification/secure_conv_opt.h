@@ -404,7 +404,7 @@ void update_conv_upper_bounds_using_prev_layers(Conv2D<T>* current_layer, Layer<
             );
         }
         
-        ZKgeneralTruncAny(
+        ZKgeneralTruncAnyRoundUp(
             current_layer->party,
             current_layer->upper_bounds,
             current_layer->upper_bounds,
@@ -575,7 +575,7 @@ void update_conv_upper_constraints_with_conv(Conv2D<T>* current_layer, Conv2D<T>
         (*new_backsubstituted_conv_upper_constraints)[i].push_back(new_const_term);
         assert((*new_backsubstituted_conv_upper_constraints)[i].size() == (*new_predecessors)[i].size() + 1);
 
-        ZKgeneralTruncAny(
+        ZKgeneralTruncAnyRoundUp(
             current_layer->party,
             (*new_backsubstituted_conv_upper_constraints)[i].data(),
             (*new_backsubstituted_conv_upper_constraints)[i].data(),
@@ -664,7 +664,7 @@ void update_conv_upper_constraints_with_activation(Conv2D<T>* current_layer, Lay
             (*new_predecessors)[i].size() + 1
         );
 
-        ZKgeneralTruncAny(
+        ZKgeneralTruncAnyRoundUp(
             current_layer->party,
             (*new_backsubstituted_conv_upper_constraints)[i].data(),
             (*new_backsubstituted_conv_upper_constraints)[i].data(),

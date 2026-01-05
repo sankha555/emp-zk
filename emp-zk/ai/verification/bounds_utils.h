@@ -1340,7 +1340,7 @@ void update_upper_bounds_using_prev_layers(Layer<T>* current_layer, Layer<T>* pr
             }
 
             // restore the fixed-point scale
-            ZKgeneralTruncAny(current_layer->party, new_bounds.data(), new_bounds.data(), new_bounds.size(), FXPSCALE);
+            ZKgeneralTruncAnyRoundUp(current_layer->party, new_bounds.data(), new_bounds.data(), new_bounds.size(), FXPSCALE);
 
             int n = 0;
             for(int i = 0; i < current_layer->output_size; i++){
@@ -1419,7 +1419,7 @@ void update_upper_constraints_with_affine(Layer<T>* current_layer, Layer<T>* pre
                 new_backsubstituted_upper_constraints[i*prev_layer->max_coeffs + k] = inner_product_bundle(2*prev_layer->output_size, copied_uc, prev_coeffs_to_mult, current_layer->party);//
             }
 
-            ZKgeneralTruncAny(
+            ZKgeneralTruncAnyRoundUp(
                 current_layer->party, 
                 new_backsubstituted_upper_constraints + i*prev_layer->max_coeffs, 
                 new_backsubstituted_upper_constraints + i*prev_layer->max_coeffs,
@@ -1527,7 +1527,7 @@ void update_upper_constraints_with_conv(Layer<T>* current_layer, Conv2D<T>* prev
             }
 
 
-            ZKgeneralTruncAny(
+            ZKgeneralTruncAnyRoundUp(
                 current_layer->party,
                 new_backsubstituted_upper_constraints + i*(prev_layer->input_size + 1),
                 new_backsubstituted_upper_constraints + i*(prev_layer->input_size + 1),
@@ -1615,14 +1615,14 @@ void update_upper_constraints_with_activation(Layer<T>* current_layer, Layer<T>*
                 non_constant_coeffs[j] = non_constant_coeffs[j] * copied_uc[j];
             }
 
-            ZKgeneralTruncAny(current_layer->party, non_constant_coeffs, non_constant_coeffs, prev_layer->output_size, FXPSCALE);
+            ZKgeneralTruncAnyRoundUp(current_layer->party, non_constant_coeffs, non_constant_coeffs, prev_layer->output_size, FXPSCALE);
 
             for(int j = 0; j < prev_layer->output_size; j++){
                 new_backsubstituted_upper_constraints[i * (prev_layer->input_size + 1) + j] = non_constant_coeffs[j];
             }
         }    
 
-        ZKgeneralTruncAny(current_layer->party, constant_terms.data(), constant_terms.data(), constant_terms.size(), FXPSCALE);
+        ZKgeneralTruncAnyRoundUp(current_layer->party, constant_terms.data(), constant_terms.data(), constant_terms.size(), FXPSCALE);
 
         int n = 0;
         for(int i = 0; i < current_layer->output_size; i++){

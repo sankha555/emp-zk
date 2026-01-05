@@ -132,15 +132,15 @@ bool greater_eq_zero<IntFp>(IntFp x, bool do_greater){
 
 
 template <typename T>
-T divide(T x, T y);
+T divide(T x, T y, bool round_up = false);
 
 template <>
-float divide<float>(float x, float y){
+float divide<float>(float x, float y, bool round_up){
     return x / y;
 }
 
 template <>
-IntFp divide<IntFp>(IntFp x, IntFp y){
+IntFp divide<IntFp>(IntFp x, IntFp y, bool round_up){
     Integer x_Integer(FXPBW, x.reveal() << FXPSCALE, PUBLIC);
     Integer y_Integer(FXPBW, y.reveal(), PUBLIC);
     Integer res = x_Integer / y_Integer;
@@ -149,9 +149,13 @@ IntFp divide<IntFp>(IntFp x, IntFp y){
 }
 
 template<>
-uint64_t divide<uint64_t>(uint64_t x, uint64_t y){
+uint64_t divide<uint64_t>(uint64_t x, uint64_t y, bool round_up){
     x = x << FXPSCALE;
-    x = x / y;
+    if(round_up){
+        x = (uint64_t) ceil(x * 1.0/ y);
+    } else {
+        x = (x / y);
+    }
 
     return x;
 }
@@ -217,10 +221,14 @@ float format_EMP_IntFp(IntFp a_IntFp, int scale_depth){
 
 
 // representation conversions
-int64_t* convert_reals_to_fixed_point_rep(int sz, float* reals){
+int64_t* convert_reals_to_fixed_point_rep(int sz, float* reals, bool round_up){
     int64_t* fixed_point_integers = new int64_t[sz];
     for(int i = 0; i < sz; i++){
-        fixed_point_integers[i] = reals[i]*(1ULL << FXPSCALE); 
+        if(round_up){
+            fixed_point_integers[i] = ceil(reals[i]*(1ULL << FXPSCALE)); 
+        } else {
+            fixed_point_integers[i] = (reals[i]*(1ULL << FXPSCALE)); 
+        }
     }
     return fixed_point_integers;
 }
@@ -243,9 +251,9 @@ IntFp* convert_fixed_point_to_field_rep(int sz, int64_t* fixed_point_integers, i
     return field_elements;
 }
 
-IntFp* convert_reals_to_field_rep(int sz, float* reals, int party = PUBLIC){
+IntFp* convert_reals_to_field_rep(int sz, float* reals, int party = PUBLIC, bool round_up = false){
     IntFp* field_elements = convert_fixed_point_to_field_rep(
-        sz, convert_reals_to_fixed_point_rep(sz, reals)
+        sz, convert_reals_to_fixed_point_rep(sz, reals, round_up)
     );
     return field_elements;
 }
