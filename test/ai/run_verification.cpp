@@ -64,7 +64,15 @@ void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
     model_float->describe(false, false);
   }
 
+  if(party == ALICE) cerr << "\nSavings due to neuron skipping:\n";
+  if(party == ALICE) model_float->savings1_stats->print_stats();
+
+  if(party == ALICE) cerr << "\nSavings due to prev. layer bounds:\n";
+  if(party == ALICE) model_float->savings2_stats->print_stats();
+
+  if(party == ALICE) cerr << "\nCoupled savings:\n";
   if(party == ALICE) model_float->savings_stats->print_stats();
+
 
   if(party == ALICE)   cout << "Verified " << num_examples_verified << "/" << num_examples << " examples [ correctly classified = " << num_examples_classified << " ]\n";
 
@@ -112,7 +120,12 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   model_float->load_weights_and_biases(PARAMETERS_PATH.c_str());
 
   VerifiableFeedForwardNeuralNetwork<IntFp>* model_field = create_model<IntFp>(num_layers, layer_specs, party);
+
+  long comm = ios[0]->counter;
+  auto s = clock_start();
   model_field->load_weights_and_biases(PARAMETERS_PATH.c_str());
+  cerr << "Time for init = " << time_from(s)/1e6 << " s\n";
+  cerr << "Comm for init = " << ios[0]->counter - comm << " bytes \n";
 
   int num_examples_verified = 0;
   int num_examples_classified = 0;

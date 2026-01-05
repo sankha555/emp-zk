@@ -14,14 +14,15 @@ using namespace std;
 
 
 typedef struct stats {
-    int min_savings;
-    int min_example;
-    int max_savings;
-    int max_example;
-    int avg_savings;
-    int total_examples;
+    long min_savings;
+    long min_example;
+    long max_savings;
+    long max_example;
+    long avg_savings;
+    long total_examples;
+    long total_comps;
 
-    void new_example(int i, int savings){
+    void new_example(long i, long savings, long total_computations){
         if(savings < min_savings){
             min_savings = savings;
             min_example = i;
@@ -35,12 +36,14 @@ typedef struct stats {
         avg_savings = avg_savings * total_examples + savings;
         total_examples++;
         avg_savings = avg_savings / total_examples;
+
+        total_comps = total_computations;
     }
 
     void print_stats(){
-        cerr << "Avg. savings = " << avg_savings << " (Total " << total_examples << " examples)\n"; 
-        cerr << "Min. savings = " << min_savings << " (Example " << min_example << ")\n";
-        cerr << "Max. savings = " << max_savings << " (Example " << max_example << ")\n"; 
+        cerr << "Avg. savings = " << avg_savings << " [" << (avg_savings * 100)/total_comps << " %] " << " (Total " << total_examples << " examples)\n"; 
+        cerr << "Min. savings = " << min_savings << " [" << (min_savings * 100)/total_comps << " %] " << " (Example " << min_example << ")\n";
+        cerr << "Max. savings = " << max_savings << " [" << (max_savings * 100)/total_comps << " %] " << " (Example " << max_example << ")\n"; 
     }
 } stats;
 
@@ -53,7 +56,10 @@ class VerifiableFeedForwardNeuralNetwork {
     
     int num_inputs;
 
+    stats* savings1_stats;
+    stats* savings2_stats;
     stats* savings_stats;
+
     map<int, set<int>*> skip_map;
     map<int, set<int>*> skip_map2;
 
@@ -61,6 +67,9 @@ class VerifiableFeedForwardNeuralNetwork {
         this->num_layers = num_layers;
         this->layers = layers;
         this->party = party;
+
+        this->savings1_stats = new stats();
+        this->savings2_stats = new stats();
         this->savings_stats = new stats();
         // validate_layers();
     }
@@ -189,7 +198,8 @@ class VerifiableFeedForwardNeuralNetwork {
         int total_neurons_saved = 0;
         int total_neurons = 0;
 
-        int savings = 0;
+        long savings1, savings2, savings, total_computations;
+        savings1 = savings2 = savings = total_computations = 0;
         for(int i = 0; i < num_layers; i++){
             layers[i]->layer_num = i+1;
 
@@ -199,6 +209,7 @@ class VerifiableFeedForwardNeuralNetwork {
             }
 
             layers[i]->forward(input_layer, prev_layer, do_inference);
+            layers[i]->sanity_check();
             prev_layer = layers[i];
 
             if(std::is_same<T, float>::value && layers[i]->type == AFFINE){
@@ -206,19 +217,29 @@ class VerifiableFeedForwardNeuralNetwork {
                 int m = ((Affine<T>*) layers[i])->output_size;
                 total_neurons += m;
 
-                savings += ((Affine<T>*) layers[i])->neurons_saved * (i/2 * (m*m + m)) + ((Affine<T>*) layers[i])->skippable_neurons2->size() * ((i-2)/2 * (m*m + m));
+                // savings += ((Affine<T>*) layers[i])->neurons_saved * (i/2 * (m*m + m)) + ((Affine<T>*) layers[i])->skippable_neurons2->size() * ((i-2)/2 * (m*m + m));
+                pair<long, long> sv = ((Affine<T>*) layers[i])->get_raw_savings();
+                savings1 += sv.first;
+                savings2 += sv.second;
+                savings += sv.first + sv.second;
+                total_computations += m * m * m * i/2; 
+                
 
                 this->skip_map[layers[i]->layer_num] = ((Affine<T>*) layers[i])->skippable_neurons;
                 this->skip_map2[layers[i]->layer_num] = ((Affine<T>*) layers[i])->skippable_neurons2;
             }
         }
-        this->savings_stats->new_example(example_num, savings);
         
         bool verification_result;
         verification_result = ((Output<T>*) layers[this->num_layers-1])->verified;
 
         bool classification_result;
         classification_result = ((Output<T>*) layers[this->num_layers-1])->correctly_classified;
+        if(classification_result == true){
+            this->savings1_stats->new_example(example_num, savings1, total_computations);
+            this->savings2_stats->new_example(example_num, savings2, total_computations);
+            this->savings_stats->new_example(example_num, savings, total_computations);
+        }
 
         // layers[num_layers - 1]->describe(false, false);
 

@@ -28,9 +28,23 @@
         ["OUTPUT", 10, 10, -1]
     ],
     "epsilon": 0.0002,
-    "input_min": -2.2,
-    "input_max": 2.2,
+    "input_min": -10,
+    "input_max": 10,
     "do_float": 0,
     "FXPSCALE": 20,
-    "examples": []
+    "examples": [],
+    "bs_waiver_thresholds": {
+        "6": 7.0,
+        "8": 7.0,
+        "10": 6.0,
+        "12": 6.0,
+        "14": 4.0
+    },
+    "bs_waiver_thresholds2": {
+        "6": -1,
+        "8": -1,
+        "10": -1,
+        "12": -1,
+        "14": -1
+    }
 }

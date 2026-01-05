@@ -59,6 +59,7 @@ class Affine : public Layer<T> {
 
         this->lower_diff = new float[this->output_size]{0};
         this->upper_diff = new float[this->output_size]{0};
+        this->diff = new float[this->output_size]{0};
         this->skippable_neurons = new set<int>();
         this->skippable_neurons2 = new set<int>();
     }
@@ -91,6 +92,7 @@ class Affine : public Layer<T> {
                 for(int i = 0; i < this->output_size; i++){
                     this->lower_diff[i] = this->lower_bounds[i];
                     this->upper_diff[i] = this->upper_bounds[i];
+                    this->diff[i] = this->upper_bounds[i] - this->lower_bounds[i];
                 }
             }
 
@@ -104,6 +106,8 @@ class Affine : public Layer<T> {
             
             if constexpr (std::is_same<float, T>::value){
                 this->analyse_and_unset_bs_bounds(input_layer);
+                // this->per_example_bound_analysis(input_layer);
+                // this->random_neuron_waiver(input_layer);
             }
             
         }
@@ -142,13 +146,15 @@ class Affine : public Layer<T> {
         for(int i = 0; i < this->output_size; i++){
             this->lower_diff[i] = (this->lower_bounds[i] - this->lower_diff[i]);
             this->upper_diff[i] = (this->upper_bounds[i] - this->upper_diff[i]);
+            this->diff[i] = this->diff[i] - (this->upper_bounds[i] - this->lower_bounds[i]);
+            // this->lower_diff[i] = this->diff[i] - (this->upper_bounds[i] - this->lower_bounds[i]);      // tracks the diff in (u - l) before and after backsubstitution
         }
 
         vector<pair<pair<float, float>, int>> neuron_info;
 
         for(int i = 0; i < this->output_size; i++){
             neuron_info.push_back(
-                {{abs(this->lower_diff[i]), abs(this->upper_diff[i])}, i}
+                {{abs(this->diff[i]), abs(this->upper_diff[i])}, i}
             );
         }
 
@@ -159,8 +165,8 @@ class Affine : public Layer<T> {
         for(int k = 0; k < this->output_size; k++){
             int nid = neuron_info[k].second;
             if(neuron_info[k].first.first < threshold){
-                this->lower_bounds[nid] = this->lower_diff[nid] - this->lower_bounds[nid]; 
-                this->upper_bounds[nid] = this->upper_diff[nid] - this->upper_bounds[nid];
+                this->lower_bounds[nid] = -this->lower_diff[nid] + this->lower_bounds[nid]; 
+                this->upper_bounds[nid] = -this->upper_diff[nid] + this->upper_bounds[nid];
 
                 this->skippable_neurons->insert(nid);
                 neurons_saved++;
@@ -173,6 +179,94 @@ class Affine : public Layer<T> {
             backsubstitute_lc_using_prev_layers(this, this->prev_layer, this->prev_layer->prev_layer, input_layer, *this->skippable_neurons2);
             backsubstitute_uc_using_prev_layers(this, this->prev_layer, this->prev_layer->prev_layer, input_layer, *this->skippable_neurons2);
         }
+    }
+
+    void per_example_bound_analysis(Layer<T>* input_layer){
+        this->skippable_neurons = new set<int>();
+        this->skippable_neurons2 = new set<int>();
+
+        // if(!BS_WAIVER_THRESHOLDS.count(to_string(this->layer_num)) || !BS_WAIVER_THRESHOLDS2.count(to_string(this->layer_num))){
+        //     return;
+        // }
+
+        float threshold = BS_WAIVER_THRESHOLDS[to_string(this->layer_num)];
+        float threshold2 = BS_WAIVER_THRESHOLDS2[to_string(this->layer_num)];
+        // cerr << threshold << "\n";
+
+        for(int i = 0; i < this->output_size; i++){
+            this->lower_diff[i] = (this->lower_bounds[i] - this->lower_diff[i]);
+            this->upper_diff[i] = (this->upper_bounds[i] - this->upper_diff[i]);
+        }
+
+        vector<pair<pair<float, float>, int>> neuron_info;
+
+        for(int i = 0; i < this->output_size; i++){
+            neuron_info.push_back(
+                {{abs(this->lower_diff[i]), abs(this->upper_diff[i])}, i}
+            );
+        }
+
+        sort(neuron_info.begin(), neuron_info.end());
+
+        int limit = threshold * this->output_size;
+        int limit2 = threshold2 * this->output_size;
+
+        for(int k = 0; k < limit; k++){
+            int nid = neuron_info[k].second;
+            this->lower_bounds[nid] = this->lower_diff[nid] - this->lower_bounds[nid]; 
+            this->upper_bounds[nid] = this->upper_diff[nid] - this->upper_bounds[nid];
+
+            this->skippable_neurons->insert(nid);
+            neurons_saved++;
+        }
+
+        for(int k = limit; k < limit + limit2; k++){
+            int nid = neuron_info[k].second;
+            this->skippable_neurons2->insert(nid);
+            neurons_saved++;
+        }
+
+        if(this->layer_num > 2 && this->skippable_neurons2->size() > 0){
+            backsubstitute_lc_using_prev_layers(this, this->prev_layer, this->prev_layer->prev_layer, input_layer, *this->skippable_neurons2);
+            backsubstitute_uc_using_prev_layers(this, this->prev_layer, this->prev_layer->prev_layer, input_layer, *this->skippable_neurons2);
+        }
+    }
+
+    void random_neuron_waiver(Layer<T>* input_layer){
+        this->skippable_neurons = new set<int>();
+        this->skippable_neurons2 = new set<int>();  
+
+        if(!BS_WAIVER_THRESHOLDS.count(to_string(this->layer_num))){
+            return;
+        }
+
+        for(int i = 0; i < this->output_size; i++){
+            this->lower_diff[i] = (this->lower_bounds[i] - this->lower_diff[i]);
+            this->upper_diff[i] = (this->upper_bounds[i] - this->upper_diff[i]);
+        }
+
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<int> dist(0, this->output_size-1);
+
+        while ((int) this->skippable_neurons->size() < 0.2 * this->output_size) {
+            int nid = dist(gen);
+            this->lower_bounds[nid] = this->lower_diff[nid] - this->lower_bounds[nid]; 
+            this->upper_bounds[nid] = this->upper_diff[nid] - this->upper_bounds[nid];
+
+            this->skippable_neurons->insert(nid);
+        }
+        neurons_saved = this->skippable_neurons->size();
+    }
+
+    pair<long, long> get_raw_savings(){
+        // no backsubstitution at all
+        long savings1 = this->skippable_neurons->size() * (this->output_size * this->output_size * (this->layer_num/2));
+
+        // backsubstitution only till previous layer
+        long savings2 = this->skippable_neurons2->size() * max(0, (this->output_size * this->output_size * (this->layer_num/2 - 1)));
+
+        return {savings1, savings2};
     }
 
 
@@ -467,12 +561,12 @@ class Affine : public Layer<T> {
                 cout << "\n\n";
                 cout << "Lower Diff:\n";
                 for(int i = 0; i < this->output_size; i++){
-                    cout << this->lower_diff[i] << " ";
+                    cout << this->diff[i] << " ";
                 }
 
                 cout << "\nUpper Diff:\n";
                 for(int i = 0; i < this->output_size; i++){
-                    cout << this->upper_diff[i] << " ";
+                    cout << this->diff[i] << " ";
                 }
                 cout << "\n";
             }

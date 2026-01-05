@@ -11,6 +11,7 @@ using namespace std;
 int port, party;
 const int threads = 1;
 int sz = 0;
+float a;
 
 void test_inner_product(){
     setup_plain_prot(false, "");
@@ -348,6 +349,44 @@ void test_comparison(BoolIO<NetIO> *ios[threads], int party){
     cout << "Time for comparison = " << (tt)/(1e6) << " seconds\n";
 }
 
+void test_conversion(BoolIO<NetIO> *ios[threads], int party){
+    auto start = clock_start();    
+    setup_plain_prot(true, "");
+    setup_zk_arith<BoolIO<NetIO>>(ios, threads, party);
+
+    uint64_t a_tilde = 0;
+
+    cerr << "hi\n";
+
+
+    if(party == ALICE){
+        int64_t a_i = floor(a * (1ULL << (2*FXPSCALE)));
+        // int64_t a_i = a;
+        a_tilde = (a_i >= 0 ? a_i : PR + a_i);
+    }
+    
+
+    IntFp* a_field = new IntFp(a_tilde, ALICE);
+    cerr << "hello\n";
+
+    *a_field = a_field->negate();
+
+    cerr << "hello\n";
+
+    ZKgeneralTruncAny(party, a_field, a_field, 1, FXPSCALE);
+
+    cerr << "hello\n";
+
+    *a_field = a_field->negate();
+
+    cerr << "hello\n";
+
+    cout << a_field->reveal() << "\n";
+
+    finalize_zk_arith<BoolIO<NetIO>>();
+}
+
+
 int main(int argc, char** argv){
     parse_party_and_port(argv, &party, &port);
     BoolIO<NetIO> *ios[threads];
@@ -357,6 +396,7 @@ int main(int argc, char** argv){
             party == ALICE);
             
     sz = atoi(argv[3]);
+    a = atof(argv[4]);
     // test_inner_product();
     // test_inner_product_without_converters(ios, party);
     // test_relu();
@@ -365,8 +405,9 @@ int main(int argc, char** argv){
     // test_double_mult(ios, party);
     // test_IntFp_signed(ios, party);
     // test_Integer_normalization(ios, party);
-    test_constructor(ios, party);
-    test_eda(ios, party);
-
+    // test_constructor(ios, party);
+    // test_eda(ios, party);
     // test_comparison(ios, party);
+
+    test_conversion(ios, party);
 }

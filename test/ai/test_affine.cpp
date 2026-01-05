@@ -122,14 +122,20 @@ void test_affine_secure(BoolIO<NetIO> *ios[threads], int party){
     IntFp y = inner_product_bundle(sz, W_IntFp, x_IntFp, party);
     cout << y.reveal() << "\n";
 
+    long comm = ios[0]->counter;
+    y = y.negate();
+    cout << "comm = " << ios[0]->counter - comm << "\n";
+
     ZKgeneralTruncAny(party, &y, &y, 1, FXPSCALE);
+
+    y = y.negate();
     cout << y.reveal() << "\n";
 
-    IntFp z(PR - 8.483 * (1ULL << FXPSCALE), ALICE);
-    IntFp r = inner_product_bundle(1, &y, &z, party);
-    ZKgeneralTruncAny(party, &r, &r, 1, FXPSCALE);
+    // IntFp z(y.reveal(), ALICE);
+    // IntFp r = inner_product_bundle(1, &y, &z, party);
+    // ZKgeneralTruncAny(party, &r, &r, 1, FXPSCALE);
 
-    cout << r.reveal() << "\n";
+    // cout << r.reveal() << "\n";
 
     bool cheated = finalize_zk_arith<BoolIO<NetIO>>();
     if(party == BOB && cheated){
@@ -232,7 +238,7 @@ int main(int argc, char** argv){
     FXPSCALE = atoi(argv[4]);
     // test_affine(ios, party);
     test_affine_secure(ios, party);
-    test_relu_secure(ios, party);
+    // test_relu_secure(ios, party);
     cout << "\n\n";
-    test_relu2_secure(ios, party);
+    // test_relu2_secure(ios, party);
 }

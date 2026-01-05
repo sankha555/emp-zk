@@ -227,7 +227,7 @@ def print_statistics(layer_data):
             print(f"    Max:   {np.max(upper_diff):.6f}")
 
 
-model = 'mnist_relu_6_100'
+model = 'mnist_relu_9_200'
 
 def main():
     # Specify your input file

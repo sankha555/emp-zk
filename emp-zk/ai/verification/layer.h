@@ -40,6 +40,7 @@ class Layer {
 
     float* lower_diff;
     float* upper_diff;
+    float* diff;
 
     // PROFILING
     double time_for_bs = 0;
@@ -73,6 +74,22 @@ class Layer {
     virtual void backsubstitute(Layer<T>* input_layer) = 0;
 
     virtual void describe(bool print_parameters = true, bool print_expressions = false) = 0;
+
+    void sanity_check(){
+        if constexpr (std::is_same<T, float>::value){
+            for(int i = 0; i < this->output_size; i++){
+                if(!(lower_bounds[i] <= output[i] && output[i] <= upper_bounds[i])){
+                    cerr << "l <= x <= u fails for neuron "+to_string(i+1)+" layer "+to_string(layer_num)+"\n";
+                    exit(0); 
+                }   
+
+                if(this->type == AFFINE && this->diff[i] < 0){
+                    cerr << "delta(u - l) >= 0 fails for neuron "+to_string(i+1)+" layer "+to_string(layer_num)+"\n";
+                    exit(0); 
+                }
+            }
+        }
+    }
 };
 
 
