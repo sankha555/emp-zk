@@ -48,9 +48,15 @@ void update_conv_lower_bounds_using_prev_layers(Conv2D<T>* current_layer, Layer<
             int j = 0;
             for(; pred != end; pred++){
                 int j_th_predecessor = *pred;
+                if(j_th_predecessor == -1){
+                    prev_layer_bounds_to_mult[j] = FIELD_ZERO;
+                    prev_layer_bounds_to_mult[j + (*current_layer->predecessors)[i].size()] = FIELD_ZERO;
 
-                prev_layer_bounds_to_mult[j]                                            = prev_layer->lower_bounds[j_th_predecessor] * coeff_signs[j];
-                prev_layer_bounds_to_mult[j + (*current_layer->predecessors)[i].size()] = prev_layer->upper_bounds[j_th_predecessor] * (FIELD_ONE + coeff_signs[j].negate());
+                } else{
+
+                    prev_layer_bounds_to_mult[j]                                            = prev_layer->lower_bounds[j_th_predecessor] * coeff_signs[j];
+                    prev_layer_bounds_to_mult[j + (*current_layer->predecessors)[i].size()] = prev_layer->upper_bounds[j_th_predecessor] * (FIELD_ONE + coeff_signs[j].negate());
+                }
                 
                 j++;
             }
@@ -188,57 +194,70 @@ void update_conv_lower_constraints_with_conv(Conv2D<T>* current_layer, Conv2D<T>
             T j_th_lc = (*current_layer->backsubstituted_conv_lower_constraints)[i][j];
 
             int j_th_predecessor = *pred;
+            if(j_th_predecessor == -1){
 
-            int* prev_pred = (*prev_layer->predecessors)[j_th_predecessor].data();
-            int* prev_end = prev_pred + (*prev_layer->predecessors)[j_th_predecessor].size();
-
-
-            int k = 0;
-            for(; prev_pred != prev_end; prev_pred++){
-                int kth_pred_of_pred = *prev_pred;
+                (*new_backsubstituted_conv_lower_constraints)[i].push_back(FIELD_ZERO);
+                (*new_predecessors)[i].push_back(-1);
                 
+            } else {
 
-                non_const_prev_constraint[0] = prev_layer->lower_constraints[j_th_predecessor * prev_layer->max_coeffs + k];
-                non_const_prev_constraint[1] = prev_layer->upper_constraints[j_th_predecessor * prev_layer->max_coeffs + k];
-
-                const_prev_constraint[0] = prev_layer->lower_constraints[(j_th_predecessor + 1) * prev_layer->max_coeffs - 1];            
-                const_prev_constraint[1] = prev_layer->upper_constraints[(j_th_predecessor + 1) * prev_layer->max_coeffs - 1];
-                
+                int* prev_pred = (*prev_layer->predecessors)[j_th_predecessor].data();
+                int* prev_end = prev_pred + (*prev_layer->predecessors)[j_th_predecessor].size();
 
 
-                int pred_index;     
-                if(seen_predecessors.count(kth_pred_of_pred)){
+                int k = 0;
+                for(; prev_pred != prev_end; prev_pred++){
+                    int kth_pred_of_pred = *prev_pred;
 
-                    pred_index = seen_predecessors[kth_pred_of_pred];
+                    if(kth_pred_of_pred == -1){
 
-                    (*new_backsubstituted_conv_lower_constraints)[i][pred_index] = (*new_backsubstituted_conv_lower_constraints)[i][pred_index] +
-                                                                                    j_th_lc * (
-                                                                                        non_const_prev_constraint[0] * coeff_signs[j] +
-                                                                                        non_const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
-                                                                                    );
+                        (*new_backsubstituted_conv_lower_constraints)[i].push_back(FIELD_ZERO);
+                        (*new_predecessors)[i].push_back(-1);
+                        
+                    } else {
+                    
+                        non_const_prev_constraint[0] = prev_layer->lower_constraints[j_th_predecessor * prev_layer->max_coeffs + k];
+                        non_const_prev_constraint[1] = prev_layer->upper_constraints[j_th_predecessor * prev_layer->max_coeffs + k];
 
-                } else {
+                        const_prev_constraint[0] = prev_layer->lower_constraints[(j_th_predecessor + 1) * prev_layer->max_coeffs - 1];            
+                        const_prev_constraint[1] = prev_layer->upper_constraints[(j_th_predecessor + 1) * prev_layer->max_coeffs - 1];
+                        
 
-                    seen_predecessors[kth_pred_of_pred] = (*new_predecessors)[i].size();
-                    pred_index = (*new_predecessors)[i].size();
-                    (*new_backsubstituted_conv_lower_constraints)[i].push_back(
-                        j_th_lc * (
-                            non_const_prev_constraint[0] * coeff_signs[j] +
-                            non_const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
-                        )
-                    );
+                        int pred_index;     
+                        if(seen_predecessors.count(kth_pred_of_pred)){
 
-                    (*new_predecessors)[i].push_back(kth_pred_of_pred);
-                }
-                
-                k++;
-            }            
+                            pred_index = seen_predecessors[kth_pred_of_pred];
 
-            new_const_term = new_const_term + 
-                            j_th_lc * (
-                                const_prev_constraint[0] * coeff_signs[j] +
-                                const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
+                            (*new_backsubstituted_conv_lower_constraints)[i][pred_index] = (*new_backsubstituted_conv_lower_constraints)[i][pred_index] +
+                                                                                            j_th_lc * (
+                                                                                                non_const_prev_constraint[0] * coeff_signs[j] +
+                                                                                                non_const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
+                                                                                            );
+
+                        } else {
+
+                            seen_predecessors[kth_pred_of_pred] = (*new_predecessors)[i].size();
+                            pred_index = (*new_predecessors)[i].size();
+                            (*new_backsubstituted_conv_lower_constraints)[i].push_back(
+                                j_th_lc * (
+                                    non_const_prev_constraint[0] * coeff_signs[j] +
+                                    non_const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
+                                )
                             );
+
+                            (*new_predecessors)[i].push_back(kth_pred_of_pred);
+                        }
+                    }
+
+                    k++;
+                }            
+
+                new_const_term = new_const_term + 
+                                j_th_lc * (
+                                    const_prev_constraint[0] * coeff_signs[j] +
+                                    const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
+                                );
+            }
 
             j++;
         }
@@ -302,28 +321,35 @@ void update_conv_lower_constraints_with_activation(Conv2D<T>* current_layer, Lay
             T j_th_lc = (*current_layer->backsubstituted_conv_lower_constraints)[i][j];
 
             int j_th_predecessor = *pred;
+            if(j_th_predecessor == -1){
+
+                (*new_backsubstituted_conv_lower_constraints)[i].push_back(FIELD_ZERO);
+                (*new_predecessors)[i].push_back(-1);
+                
+            } else{
             
-            non_const_prev_constraint[0] = prev_layer->lower_constraints[j_th_predecessor * 2 + 0];            
-            non_const_prev_constraint[1] = prev_layer->upper_constraints[j_th_predecessor * 2 + 0];
+                non_const_prev_constraint[0] = prev_layer->lower_constraints[j_th_predecessor * 2 + 0];            
+                non_const_prev_constraint[1] = prev_layer->upper_constraints[j_th_predecessor * 2 + 0];
 
-            const_prev_constraint[0] = prev_layer->lower_constraints[j_th_predecessor * 2 + 1];
-            const_prev_constraint[1] = prev_layer->upper_constraints[j_th_predecessor * 2 + 1];        
-            
+                const_prev_constraint[0] = prev_layer->lower_constraints[j_th_predecessor * 2 + 1];
+                const_prev_constraint[1] = prev_layer->upper_constraints[j_th_predecessor * 2 + 1];        
+                
 
-            (*new_backsubstituted_conv_lower_constraints)[i].push_back(
-                j_th_lc * (
-                    non_const_prev_constraint[0] * coeff_signs[j] +
-                    non_const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
-                )
-            );
+                (*new_backsubstituted_conv_lower_constraints)[i].push_back(
+                    j_th_lc * (
+                        non_const_prev_constraint[0] * coeff_signs[j] +
+                        non_const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
+                    )
+                );
 
-            new_const_term = new_const_term + 
-                            j_th_lc * (
-                                const_prev_constraint[0] * coeff_signs[j] +
-                                const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
-                            );
+                new_const_term = new_const_term + 
+                                j_th_lc * (
+                                    const_prev_constraint[0] * coeff_signs[j] +
+                                    const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
+                                );
 
-            (*new_predecessors)[i].push_back(j_th_predecessor);
+                (*new_predecessors)[i].push_back(j_th_predecessor);
+            }
 
             j++;
         }
@@ -385,8 +411,14 @@ void update_conv_upper_bounds_using_prev_layers(Conv2D<T>* current_layer, Layer<
             for(; pred != end; pred++){
                 int j_th_predecessor = *pred;
 
-                prev_layer_bounds_to_mult[j]                                            = prev_layer->upper_bounds[j_th_predecessor] * coeff_signs[j];
-                prev_layer_bounds_to_mult[j + (*current_layer->predecessors)[i].size()] = prev_layer->lower_bounds[j_th_predecessor] * (FIELD_ONE + coeff_signs[j].negate());
+                if(j_th_predecessor == -1){
+                    prev_layer_bounds_to_mult[j] = FIELD_ZERO;
+                    prev_layer_bounds_to_mult[j + (*current_layer->predecessors)[i].size()] = FIELD_ZERO;
+                    
+                } else{
+                    prev_layer_bounds_to_mult[j]                                            = prev_layer->upper_bounds[j_th_predecessor] * coeff_signs[j];
+                    prev_layer_bounds_to_mult[j + (*current_layer->predecessors)[i].size()] = prev_layer->lower_bounds[j_th_predecessor] * (FIELD_ONE + coeff_signs[j].negate());
+                }
                 
                 j++;
             }
@@ -517,57 +549,70 @@ void update_conv_upper_constraints_with_conv(Conv2D<T>* current_layer, Conv2D<T>
             T j_th_lc = (*current_layer->backsubstituted_conv_upper_constraints)[i][j];
 
             int j_th_predecessor = *pred;
+            if(j_th_predecessor == -1){
 
-            int* prev_pred = (*prev_layer->predecessors)[j_th_predecessor].data();
-            int* prev_end = prev_pred + (*prev_layer->predecessors)[j_th_predecessor].size();
-
-
-            int k = 0;
-            for(; prev_pred != prev_end; prev_pred++){
-                int kth_pred_of_pred = *prev_pred;
+                (*new_backsubstituted_conv_upper_constraints)[i].push_back(FIELD_ZERO);
+                (*new_predecessors)[i].push_back(-1);
                 
+            } else {
 
-                non_const_prev_constraint[0] = prev_layer->upper_constraints[j_th_predecessor * prev_layer->max_coeffs + k];
-                non_const_prev_constraint[1] = prev_layer->lower_constraints[j_th_predecessor * prev_layer->max_coeffs + k];
-
-                const_prev_constraint[0] = prev_layer->upper_constraints[(j_th_predecessor + 1) * prev_layer->max_coeffs - 1];            
-                const_prev_constraint[1] = prev_layer->lower_constraints[(j_th_predecessor + 1) * prev_layer->max_coeffs - 1];
-                
+                int* prev_pred = (*prev_layer->predecessors)[j_th_predecessor].data();
+                int* prev_end = prev_pred + (*prev_layer->predecessors)[j_th_predecessor].size();
 
 
-                int pred_index;     
-                if(seen_predecessors.count(kth_pred_of_pred)){
+                int k = 0;
+                for(; prev_pred != prev_end; prev_pred++){
+                    int kth_pred_of_pred = *prev_pred;
+                    if(kth_pred_of_pred == -1){
 
-                    pred_index = seen_predecessors[kth_pred_of_pred];
+                        (*new_backsubstituted_conv_upper_constraints)[i].push_back(FIELD_ZERO);
+                        (*new_predecessors)[i].push_back(-1);
+                        
+                    } else {
 
-                    (*new_backsubstituted_conv_upper_constraints)[i][pred_index] = (*new_backsubstituted_conv_upper_constraints)[i][pred_index] +
-                                                                                    j_th_lc * (
-                                                                                        non_const_prev_constraint[0] * coeff_signs[j] +
-                                                                                        non_const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
-                                                                                    );
+                        non_const_prev_constraint[0] = prev_layer->upper_constraints[j_th_predecessor * prev_layer->max_coeffs + k];
+                        non_const_prev_constraint[1] = prev_layer->lower_constraints[j_th_predecessor * prev_layer->max_coeffs + k];
 
-                } else {
+                        const_prev_constraint[0] = prev_layer->upper_constraints[(j_th_predecessor + 1) * prev_layer->max_coeffs - 1];            
+                        const_prev_constraint[1] = prev_layer->lower_constraints[(j_th_predecessor + 1) * prev_layer->max_coeffs - 1];
+                        
 
-                    seen_predecessors[kth_pred_of_pred] = (*new_predecessors)[i].size();
-                    pred_index = (*new_predecessors)[i].size();
-                    (*new_backsubstituted_conv_upper_constraints)[i].push_back(
-                        j_th_lc * (
-                            non_const_prev_constraint[0] * coeff_signs[j] +
-                            non_const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
-                        )
-                    );
 
-                    (*new_predecessors)[i].push_back(kth_pred_of_pred);
-                }
-                
-                k++;
-            }            
+                        int pred_index;     
+                        if(seen_predecessors.count(kth_pred_of_pred)){
 
-            new_const_term = new_const_term + 
-                            j_th_lc * (
-                                const_prev_constraint[0] * coeff_signs[j] +
-                                const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
+                            pred_index = seen_predecessors[kth_pred_of_pred];
+
+                            (*new_backsubstituted_conv_upper_constraints)[i][pred_index] = (*new_backsubstituted_conv_upper_constraints)[i][pred_index] +
+                                                                                            j_th_lc * (
+                                                                                                non_const_prev_constraint[0] * coeff_signs[j] +
+                                                                                                non_const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
+                                                                                            );
+
+                        } else {
+
+                            seen_predecessors[kth_pred_of_pred] = (*new_predecessors)[i].size();
+                            pred_index = (*new_predecessors)[i].size();
+                            (*new_backsubstituted_conv_upper_constraints)[i].push_back(
+                                j_th_lc * (
+                                    non_const_prev_constraint[0] * coeff_signs[j] +
+                                    non_const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
+                                )
                             );
+
+                            (*new_predecessors)[i].push_back(kth_pred_of_pred);
+                        }
+                    }
+                    
+                    k++;
+                }            
+
+                new_const_term = new_const_term + 
+                                j_th_lc * (
+                                    const_prev_constraint[0] * coeff_signs[j] +
+                                    const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
+                                );
+            }
 
             j++;
         }
@@ -631,28 +676,35 @@ void update_conv_upper_constraints_with_activation(Conv2D<T>* current_layer, Lay
             T j_th_lc = (*current_layer->backsubstituted_conv_upper_constraints)[i][j];
 
             int j_th_predecessor = *pred;
+            if(j_th_predecessor == -1){
+
+                (*new_backsubstituted_conv_upper_constraints)[i].push_back(FIELD_ZERO);
+                (*new_predecessors)[i].push_back(-1);
+                
+            } else {
             
-            non_const_prev_constraint[0] = prev_layer->upper_constraints[j_th_predecessor * 2 + 0];            
-            non_const_prev_constraint[1] = prev_layer->lower_constraints[j_th_predecessor * 2 + 0];
+                non_const_prev_constraint[0] = prev_layer->upper_constraints[j_th_predecessor * 2 + 0];            
+                non_const_prev_constraint[1] = prev_layer->lower_constraints[j_th_predecessor * 2 + 0];
 
-            const_prev_constraint[0] = prev_layer->upper_constraints[j_th_predecessor * 2 + 1];
-            const_prev_constraint[1] = prev_layer->lower_constraints[j_th_predecessor * 2 + 1];        
-            
+                const_prev_constraint[0] = prev_layer->upper_constraints[j_th_predecessor * 2 + 1];
+                const_prev_constraint[1] = prev_layer->lower_constraints[j_th_predecessor * 2 + 1];        
+                
 
-            (*new_backsubstituted_conv_upper_constraints)[i].push_back(
-                j_th_lc * (
-                    non_const_prev_constraint[0] * coeff_signs[j] +
-                    non_const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
-                )
-            );
+                (*new_backsubstituted_conv_upper_constraints)[i].push_back(
+                    j_th_lc * (
+                        non_const_prev_constraint[0] * coeff_signs[j] +
+                        non_const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
+                    )
+                );
 
-            new_const_term = new_const_term + 
-                            j_th_lc * (
-                                const_prev_constraint[0] * coeff_signs[j] +
-                                const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
-                            );
+                new_const_term = new_const_term + 
+                                j_th_lc * (
+                                    const_prev_constraint[0] * coeff_signs[j] +
+                                    const_prev_constraint[1] * (FIELD_ONE + coeff_signs[j].negate())
+                                );
 
-            (*new_predecessors)[i].push_back(j_th_predecessor);
+                (*new_predecessors)[i].push_back(j_th_predecessor);
+            }
 
             j++;
         }
