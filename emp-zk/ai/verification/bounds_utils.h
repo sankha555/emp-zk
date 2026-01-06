@@ -15,6 +15,180 @@ using namespace emp;
 
 
 template <typename T>
+void backsubstitute_lc_using_prev_affine(Layer<T>* current_layer, Layer<T>* prev_activation, Layer<T>* prev_affine, Layer<T>* input_layer){
+
+    T* new_backsubstituted_lower_constraints = new T[current_layer->output_size * (NUM_FEATURES[CURR_DATASET] + 1) ];
+
+    for(int i = 0; i < current_layer->output_size; i++){
+        T constant_term = constant<T>(0);
+        for(int j = 0; j < prev_affine->output_size; j++){
+            if(greater_eq_zero<T>(current_layer->lower_constraints[i * current_layer->max_coeffs + j], true)){
+
+                // constant due to ReLU
+                constant_term = constant_term + current_layer->lower_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->lower_constraints[j * 2 + 1];
+
+                // constant due to Affine
+                constant_term = constant_term + current_layer->lower_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->lower_constraints[j * 2 + 0] *
+                                                prev_affine->backsubstituted_lower_constraints[(j + 1) * (NUM_FEATURES[CURR_DATASET] + 1) - 1];
+                
+            } else {
+
+                // constant due to ReLU
+                constant_term = constant_term + current_layer->lower_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->upper_constraints[j * 2 + 1];
+
+                // constant due to Affine
+                constant_term = constant_term + current_layer->lower_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->upper_constraints[j * 2 + 0] *
+                                                prev_affine->backsubstituted_upper_constraints[(j + 1) * (NUM_FEATURES[CURR_DATASET] + 1) - 1];
+            }
+        }
+        new_backsubstituted_lower_constraints[(i + 1)* (NUM_FEATURES[CURR_DATASET] + 1) - 1] = constant_term + current_layer->lower_constraints[(i + 1) * current_layer->max_coeffs - 1];
+
+
+
+        for(int k = 0; k < (NUM_FEATURES[CURR_DATASET]); k++){
+
+            T accumulated = constant<T>(0);
+
+            for(int j = 0; j < prev_affine->output_size; j++){
+                if(greater_eq_zero<T>(current_layer->lower_constraints[i * current_layer->max_coeffs + j], true)){
+                    accumulated = accumulated + current_layer->lower_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->lower_constraints[j * 2 + 0] *
+                                                prev_affine->backsubstituted_lower_constraints[j * (NUM_FEATURES[CURR_DATASET] + 1) + k];
+                    
+                } else {
+                    accumulated = accumulated + current_layer->lower_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->upper_constraints[j * 2 + 0] *
+                                                prev_affine->backsubstituted_upper_constraints[j * (NUM_FEATURES[CURR_DATASET] + 1) + k];
+
+                }
+            }
+
+            new_backsubstituted_lower_constraints[i * (NUM_FEATURES[CURR_DATASET] + 1) + k] = accumulated;
+        }
+
+    }
+
+    delete[] current_layer->backsubstituted_lower_constraints;
+    current_layer->backsubstituted_lower_constraints = new_backsubstituted_lower_constraints;
+
+
+    for(int i = 0; i < current_layer->output_size; i++){
+        T* current_lower_constraints = current_layer->backsubstituted_lower_constraints + (i* (NUM_FEATURES[CURR_DATASET] + 1));
+
+        T accumulated = current_lower_constraints[NUM_FEATURES[CURR_DATASET]];
+
+        for(int j = 0; j < input_layer->output_size; j++){
+            if(greater_eq_zero<T>((T) current_lower_constraints[j], true)){
+                accumulated = accumulated + current_lower_constraints[j] * input_layer->lower_bounds[j];
+            } else {
+                accumulated = accumulated + current_lower_constraints[j] * input_layer->upper_bounds[j];
+            }
+        }
+
+        // current_layer->lower_bounds[i] = inner_product_emp(current_layer->max_coeffs, current_lower_constraints, prev_layer_bounds_to_mult);
+        current_layer->lower_bounds[i] = accumulated;
+    }
+
+    if constexpr (std::is_same<IntFp, T>::value){
+        normalize(current_layer->output_size, current_layer->lower_bounds, current_layer->lower_bounds);
+    }
+
+
+}
+
+
+template <typename T>
+void backsubstitute_uc_using_prev_affine(Layer<T>* current_layer, Layer<T>* prev_activation, Layer<T>* prev_affine, Layer<T>* input_layer){
+
+    T* new_backsubstituted_upper_constraints = new T[current_layer->output_size * (NUM_FEATURES[CURR_DATASET] + 1) ];
+
+    for(int i = 0; i < current_layer->output_size; i++){
+        T constant_term = constant<T>(0);
+        for(int j = 0; j < prev_affine->output_size; j++){
+            if(greater_eq_zero<T>(current_layer->upper_constraints[i * current_layer->max_coeffs + j], false)){
+
+                // constant due to ReLU
+                constant_term = constant_term + current_layer->upper_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->upper_constraints[j * 2 + 1];
+
+                // constant due to Affine
+                constant_term = constant_term + current_layer->upper_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->upper_constraints[j * 2 + 0] *
+                                                prev_affine->backsubstituted_upper_constraints[(j + 1) * (NUM_FEATURES[CURR_DATASET] + 1) - 1];
+                
+            } else {
+
+                // constant due to ReLU
+                constant_term = constant_term + current_layer->upper_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->lower_constraints[j * 2 + 1];
+
+                // constant due to Affine
+                constant_term = constant_term + current_layer->upper_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->lower_constraints[j * 2 + 0] *
+                                                prev_affine->backsubstituted_lower_constraints[(j + 1) * (NUM_FEATURES[CURR_DATASET] + 1) - 1];
+            }
+        }
+        new_backsubstituted_upper_constraints[(i + 1)* (NUM_FEATURES[CURR_DATASET] + 1) - 1] = constant_term + current_layer->upper_constraints[(i + 1) * current_layer->max_coeffs - 1];
+
+
+
+        for(int k = 0; k < (NUM_FEATURES[CURR_DATASET]); k++){
+
+            T accumulated = constant<T>(0);
+
+            for(int j = 0; j < prev_affine->output_size; j++){
+                if(greater_eq_zero<T>(current_layer->upper_constraints[i * current_layer->max_coeffs + j], false)){
+                    accumulated = accumulated + current_layer->upper_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->upper_constraints[j * 2 + 0] *
+                                                prev_affine->backsubstituted_upper_constraints[j * (NUM_FEATURES[CURR_DATASET] + 1) + k];
+                    
+                } else {
+                    accumulated = accumulated + current_layer->upper_constraints[i * current_layer->max_coeffs + j] *
+                                                prev_activation->lower_constraints[j * 2 + 0] *
+                                                prev_affine->backsubstituted_lower_constraints[j * (NUM_FEATURES[CURR_DATASET] + 1) + k];
+
+                }
+            }
+
+            new_backsubstituted_upper_constraints[i * (NUM_FEATURES[CURR_DATASET] + 1) + k] = accumulated;
+        }
+
+    }
+
+    delete[] current_layer->backsubstituted_upper_constraints;
+    current_layer->backsubstituted_upper_constraints = new_backsubstituted_upper_constraints;
+
+
+    for(int i = 0; i < current_layer->output_size; i++){
+        T* current_upper_constraints = current_layer->backsubstituted_upper_constraints + (i* (NUM_FEATURES[CURR_DATASET] + 1));
+
+        T accumulated = current_upper_constraints[NUM_FEATURES[CURR_DATASET]];
+
+        for(int j = 0; j < input_layer->output_size; j++){
+            if(greater_eq_zero<T>((T) current_upper_constraints[j], false)){
+                accumulated = accumulated + current_upper_constraints[j] * input_layer->upper_bounds[j];
+            } else {
+                accumulated = accumulated + current_upper_constraints[j] * input_layer->lower_bounds[j];
+            }
+        }
+
+        // current_layer->upper_bounds[i] = inner_product_emp(current_layer->max_coeffs, current_upper_constraints, prev_layer_bounds_to_mult);
+        current_layer->upper_bounds[i] = accumulated;
+    }
+
+    if constexpr (std::is_same<IntFp, T>::value){
+        normalize(current_layer->output_size, current_layer->upper_bounds, current_layer->upper_bounds);
+    }
+
+
+}
+
+
+template <typename T>
 void update_lower_bounds_using_prev_layers(Layer<T>* current_layer, Layer<T>* prev_layer){
     assert(current_layer->max_coeffs == prev_layer->output_size + 1 && "Current layer's no. of coeffs should match (prev. layer's num neurons + 1).");
     auto start = clock_start();
@@ -35,6 +209,10 @@ void update_lower_bounds_using_prev_layers(Layer<T>* current_layer, Layer<T>* pr
         T* copied_lc = new T[2*(current_layer->max_coeffs - 1)];
 
         for(int i = 0; i < current_layer->output_size; i++){
+            if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                current_layer->lower_bounds[i] = current_layer->lower_bounds[i] * FIELD_SCALED_ONE;
+                continue;
+            }
         
             ZKcmpPositive(current_layer->party, current_layer->backsubstituted_lower_constraints + i*current_layer->max_coeffs, ZERO_COMP_CONSTANT, coeff_sign, current_layer->max_coeffs - 1);
             for(int j = 0; j < current_layer->max_coeffs - 1; j++){
@@ -62,6 +240,9 @@ void update_lower_bounds_using_prev_layers(Layer<T>* current_layer, Layer<T>* pr
         ZKgeneralTruncAny(current_layer->party, current_layer->lower_bounds, current_layer->lower_bounds, current_layer->output_size, FXPSCALE);
 
         for(int i = 0; i < current_layer->output_size; i++){
+            if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                continue;
+            }
             current_layer->lower_bounds[i] = current_layer->lower_bounds[i] + current_layer->backsubstituted_lower_constraints[(i+1)*current_layer->max_coeffs - 1];    // adding the constant bias term
         }
 
@@ -93,7 +274,7 @@ void update_lower_bounds_using_prev_layers(Layer<T>* current_layer, Layer<T>* pr
 template <typename T>
 void update_lower_constraints_with_affine(Layer<T>* current_layer, Layer<T>* prev_layer){
 
-    T* new_backsubstituted_lower_constraints = new T[current_layer->output_size * (prev_layer->input_size + 1)];
+    T* new_backsubstituted_lower_constraints = new T[current_layer->output_size * (prev_layer->input_size + 1)]{FIELD_ZERO};
 
     if constexpr (std::is_same<IntFp, T>::value && SECURE){
         double time_for_comp = 0;
@@ -105,7 +286,12 @@ void update_lower_constraints_with_affine(Layer<T>* current_layer, Layer<T>* pre
         IntFp* prev_coeffs_to_mult = new IntFp[2 * prev_layer->output_size];
         T* copied_lc = new T[2*(current_layer->max_coeffs - 1)];
 
+
         for(int i = 0; i < current_layer->output_size; i++){
+            if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                continue;
+            }
+
             T* current_lower_constraints = current_layer->backsubstituted_lower_constraints + (i*current_layer->max_coeffs);
             
             ZKcmpPositive(current_layer->party, current_lower_constraints, ZERO_COMP_CONSTANT, coeff_sign, current_layer->max_coeffs - 1);
@@ -152,9 +338,6 @@ void update_lower_constraints_with_affine(Layer<T>* current_layer, Layer<T>* pre
         delete[] coeff_sign;
         delete[] prev_coeffs_to_mult;
         delete[] copied_lc;
-
-        // cout << "Time for Comparisons = " << time_for_comp/1e6 << " seconds\n";
-        // cout << "Time for Inner-Product = " << time_for_ip/1e6 << " seconds\n\n\n";
 
         current_layer->max_coeffs = prev_layer->max_coeffs; // check
 
@@ -264,7 +447,7 @@ void update_lower_constraints_with_conv(Layer<T>* current_layer, Conv2D<T>* prev
 
 template <typename T>
 void update_lower_constraints_with_activation(Layer<T>* current_layer, Layer<T>* prev_layer){
-    T* new_backsubstituted_lower_constraints = new T[current_layer->output_size * (prev_layer->input_size + 1)];
+    T* new_backsubstituted_lower_constraints = new T[current_layer->output_size * (prev_layer->input_size + 1)]{FIELD_ZERO};
 
     if constexpr (std::is_same<IntFp, T>::value && SECURE) {
 
@@ -282,6 +465,10 @@ void update_lower_constraints_with_activation(Layer<T>* current_layer, Layer<T>*
 
         /* handle constant term */
         for(int i = 0; i < current_layer->output_size; i++){
+            if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                constant_terms[i] = FIELD_ZERO;
+                continue;
+            }
 
             T* current_lower_constraints = current_layer->backsubstituted_lower_constraints + (i*current_layer->max_coeffs);
             
@@ -331,6 +518,9 @@ void update_lower_constraints_with_activation(Layer<T>* current_layer, Layer<T>*
         ZKgeneralTruncAny(current_layer->party, constant_terms, constant_terms, current_layer->output_size, FXPSCALE);
 
         for(int i = 0; i < current_layer->output_size; i++){
+            if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                continue;
+            }
             new_backsubstituted_lower_constraints[(i + 1) * (prev_layer->input_size + 1) - 1] = new_backsubstituted_lower_constraints[(i + 1) * (prev_layer->input_size + 1) - 1] +
                                                                                                 constant_terms[i];
         }
@@ -351,56 +541,6 @@ void update_lower_constraints_with_activation(Layer<T>* current_layer, Layer<T>*
         cleartext_update_lower_constraints_with_activation(current_layer, prev_layer);
     }
 }
-
-template <typename T>
-void update_lower_constraints_with_bsed_affine(Layer<T>* current_layer, Layer<T>* prev_layer){
-    // cout << "AFFINE LAYER " << current_layer->layer_num << "::" << "PREV LAYER " << prev_layer->layer_num << "\n";
-    T* new_backsubstituted_lower_constraints = new T[current_layer->output_size * 785];
-
-    double time_for_comp = 0;
-    double time_for_ip = 0;
-    for(int i = 0; i < current_layer->output_size; i++){
-        T* current_lower_constraints = current_layer->backsubstituted_lower_constraints + (i*current_layer->max_coeffs);
-        T* prev_coeffs_to_mult = new T[prev_layer->output_size];
-        
-        for(int k = 0; k < 785; k++){        // including constant term
-    
-            auto start = clock_start();
-            for(int j = 0; j < prev_layer->output_size; j++){
-                if(greater_eq_zero<T>(current_lower_constraints[j], false)){
-                    prev_coeffs_to_mult[j] = prev_layer->backsubstituted_lower_constraints[j*785 + k];
-                } else {
-                    prev_coeffs_to_mult[j] = prev_layer->backsubstituted_upper_constraints[j*785 + k];
-                }    
-            }
-            double tt = time_from(start);
-            time_for_comp += tt;
-
-            start = clock_start();
-            new_backsubstituted_lower_constraints[i*785 + k] = inner_product_emp(prev_layer->output_size, current_lower_constraints, prev_coeffs_to_mult);
-            tt = time_from(start);
-            time_for_ip += tt;
-        }
-
-        if constexpr (std::is_same<IntFp, T>::value){
-            normalize(785, new_backsubstituted_lower_constraints + i*785, new_backsubstituted_lower_constraints + i*785);
-        }
-
-        // adding constant term to constant product
-        new_backsubstituted_lower_constraints[(i + 1)*785 - 1] = new_backsubstituted_lower_constraints[(i + 1)*785 - 1] 
-                                                                                    + current_lower_constraints[current_layer->max_coeffs - 1];
-    }
-
-    // cout << "Time for Comparisons = " << time_for_comp/1e6 << " seconds\n";
-    // cout << "Time for Inner-Product = " << time_for_ip/1e6 << " seconds\n\n\n";
-
-    current_layer->max_coeffs = 785; // check
-
-    delete[] current_layer->backsubstituted_lower_constraints;
-    current_layer->backsubstituted_lower_constraints = new_backsubstituted_lower_constraints;
-}
-
-
 
 /* ===================== UPPER CONSTRAINTS ===================== */
 template <typename T>
@@ -424,6 +564,10 @@ void update_upper_bounds_using_prev_layers(Layer<T>* current_layer, Layer<T>* pr
         T* copied_uc = new T[2*(current_layer->max_coeffs - 1)];
 
         for(int i = 0; i < current_layer->output_size; i++){
+            if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                current_layer->upper_bounds[i] = current_layer->upper_bounds[i] * FIELD_SCALED_ONE;
+                continue;
+            }
         
             ZKcmpPositive(current_layer->party, current_layer->backsubstituted_upper_constraints + i*current_layer->max_coeffs, ZERO_COMP_CONSTANT, coeff_sign, current_layer->max_coeffs - 1);
             for(int j = 0; j < current_layer->max_coeffs - 1; j++){
@@ -448,6 +592,9 @@ void update_upper_bounds_using_prev_layers(Layer<T>* current_layer, Layer<T>* pr
         ZKgeneralTruncAny(current_layer->party, current_layer->upper_bounds, current_layer->upper_bounds, current_layer->output_size, FXPSCALE);
 
         for(int i = 0; i < current_layer->output_size; i++){
+            if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                continue;
+            }
             current_layer->upper_bounds[i] = current_layer->upper_bounds[i] + current_layer->backsubstituted_upper_constraints[(i+1)*current_layer->max_coeffs - 1];    // adding the constant bias term
         }
 
@@ -491,6 +638,10 @@ void update_upper_constraints_with_affine(Layer<T>* current_layer, Layer<T>* pre
         T* copied_uc = new T[2*(current_layer->max_coeffs - 1)];
 
         for(int i = 0; i < current_layer->output_size; i++){
+            if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                continue;
+            }
+
             T* current_upper_constraints = current_layer->backsubstituted_upper_constraints + (i*current_layer->max_coeffs);
 
             
@@ -572,6 +723,10 @@ void update_upper_constraints_with_conv(Layer<T>* current_layer, Conv2D<T>* prev
 
 
         for(int i = 0; i < current_layer->output_size; i++){
+            if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                continue;
+            }
+
             T* current_upper_constraints = current_layer->backsubstituted_upper_constraints + i * (prev_layer->output_size + 1);        
 
             ZKcmpPositive(current_layer->party, current_upper_constraints, ZERO_COMP_CONSTANT, temp_coeff_sign, current_layer->max_coeffs - 1);
@@ -670,6 +825,10 @@ void update_upper_constraints_with_activation(Layer<T>* current_layer, Layer<T>*
 
         /* handle constant term */
         for(int i = 0; i < current_layer->output_size; i++){
+            if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                constant_terms[i] = FIELD_ZERO;
+                continue;
+            }
 
             T* current_upper_constraints = current_layer->backsubstituted_upper_constraints + (i*current_layer->max_coeffs);
             
@@ -719,6 +878,9 @@ void update_upper_constraints_with_activation(Layer<T>* current_layer, Layer<T>*
         ZKgeneralTruncAny(current_layer->party, constant_terms, constant_terms, current_layer->output_size, FXPSCALE);
 
         for(int i = 0; i < current_layer->output_size; i++){
+            if(((Affine<T>*) current_layer)->skippable_neurons->count(i)){
+                continue;
+            }
             new_backsubstituted_upper_constraints[(i + 1) * (prev_layer->input_size + 1) - 1] = new_backsubstituted_upper_constraints[(i + 1) * (prev_layer->input_size + 1) - 1] +
                                                                                                 constant_terms[i];
         }

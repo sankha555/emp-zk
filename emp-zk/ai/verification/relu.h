@@ -16,6 +16,8 @@ using namespace std;
 template <typename T>
 class ReLU : public Layer<T> {
     public:
+
+    bool* is_exact;
     
     ReLU(int input_size, int output_size, int max_coeffs = 2, int party = PUBLIC) : Layer<T>(input_size, output_size, max_coeffs, party){
         if(input_size != output_size){
@@ -36,6 +38,8 @@ class ReLU : public Layer<T> {
         
         this->lower_constraints = new T[output_size*this->max_coeffs];
         this->upper_constraints = new T[output_size*this->max_coeffs];
+
+        this->is_exact = new bool[output_size]{false};
     }
 
     void forward(Layer<T>* input_layer, Layer<T>* prev_layer, bool do_inference = true){
@@ -202,9 +206,13 @@ class ReLU : public Layer<T> {
             if(greater_eq_zero<T>(prev_lb, false)){
                 this->lower_constraints[i*2 + 0] = constant<T>(1);
                 this->lower_constraints[i*2 + 1] = constant<T>(0);
+
+                this->is_exact[i] = true;
             } else if(!greater_eq_zero<T>(prev_ub, false)){
                 this->lower_constraints[i*2 + 0] = constant<T>(0);
                 this->lower_constraints[i*2 + 1] = constant<T>(0);
+
+                this->is_exact[i] = true;
             } else {
                 // l^(k-1)_i < 0 && u^(k-1)_i > 0
                 T abs_diff = prev_ub + prev_lb;
@@ -277,6 +285,7 @@ class ReLU : public Layer<T> {
         this->upper_constraints = new T[this->output_size*this->max_coeffs];
 
         this->is_backsubstituted = false;
+        this->is_exact = new bool[this->output_size]{false};
     }
 
 

@@ -13,6 +13,37 @@ using namespace emp;
 using namespace std;
 
 
+typedef struct stats {
+    int min_savings;
+    int min_example;
+    int max_savings;
+    int max_example;
+    int avg_savings;
+    int total_examples;
+
+    void new_example(int i, int savings){
+        if(savings < min_savings){
+            min_savings = savings;
+            min_example = i;
+        }
+
+        if(savings > max_savings){
+            max_savings = savings;
+            max_example = i;
+        }
+
+        avg_savings = avg_savings * total_examples + savings;
+        total_examples++;
+        avg_savings = avg_savings / total_examples;
+    }
+
+    void print_stats(){
+        cerr << "Avg. savings = " << avg_savings << " (Total " << total_examples << " examples)\n"; 
+        cerr << "Min. savings = " << min_savings << " (Example " << min_example << ")\n";
+        cerr << "Max. savings = " << max_savings << " (Example " << max_example << ")\n"; 
+    }
+} stats;
+
 template <typename T>
 class VerifiableFeedForwardNeuralNetwork {
     public:
@@ -22,10 +53,14 @@ class VerifiableFeedForwardNeuralNetwork {
     
     int num_inputs;
 
+    stats* savings_stats;
+    map<int, set<int>*> skip_map;
+
     VerifiableFeedForwardNeuralNetwork(int num_layers, Layer<T>** layers, int party = PUBLIC){
         this->num_layers = num_layers;
         this->layers = layers;
         this->party = party;
+        this->savings_stats = new stats();
         // validate_layers();
     }
 
@@ -89,6 +124,12 @@ class VerifiableFeedForwardNeuralNetwork {
 
         float* raw_lb = new float[input_layer->input_size];
         for(int i = 0; i < input_layer->input_size; i++){
+
+            if(sensitive_attrs.count(i)){
+                raw_lb[i] = raw_inputs[i];
+                continue;
+            }
+
             raw_lb[i] = raw_inputs[i] - epsilon;
             if(raw_lb[i] < INPUT_MIN){
                 raw_lb[i] = INPUT_MIN;
@@ -101,6 +142,12 @@ class VerifiableFeedForwardNeuralNetwork {
 
         float* raw_ub = new float[input_layer->input_size];
         for(int i = 0; i < input_layer->input_size; i++){
+
+            if(sensitive_attrs.count(i)){
+                raw_ub[i] = raw_inputs[i];
+                continue;
+            }
+
             raw_ub[i] = raw_inputs[i] + epsilon;
             if(raw_ub[i] < INPUT_MIN){
                 raw_ub[i] = INPUT_MIN;
@@ -139,18 +186,41 @@ class VerifiableFeedForwardNeuralNetwork {
         for(int i = 0; i < this->num_layers; i++){
             ((Layer<T>*) this->layers[i])->reset();
         }
+        if(std::is_same<T, float>::value){
+            this->skip_map = {};
+        }
     }
 
 
-    std::pair<bool, bool> forward(bool do_backsubstitution = false, bool do_inference = true){
+    std::pair<bool, bool> forward(int example_num = 1, bool do_backsubstitution = false, bool do_inference = true){
         Layer<T>* prev_layer = nullptr;
         Layer<T>* input_layer = layers[0];
 
+        int total_neurons_saved = 0;
+        int total_neurons = 0;
+
+        int savings = 0;
         for(int i = 0; i < num_layers; i++){
             layers[i]->layer_num = i+1;
+
+            if(std::is_same<T, IntFp>::value && layers[i]->type == AFFINE && this->skip_map.count(layers[i]->layer_num)){
+                ((Affine<T>*) layers[i])->skippable_neurons = this->skip_map[layers[i]->layer_num];
+            }
+
             layers[i]->forward(input_layer, prev_layer, do_inference);
             prev_layer = layers[i];
+
+            if(std::is_same<T, float>::value && layers[i]->type == AFFINE){
+                total_neurons_saved += ((Affine<T>*) layers[i])->neurons_saved;
+                int m = ((Affine<T>*) layers[i])->output_size;
+                total_neurons += m;
+
+                savings += ((Affine<T>*) layers[i])->neurons_saved * (i/2 * (m*m + m));
+
+                this->skip_map[layers[i]->layer_num] = ((Affine<T>*) layers[i])->skippable_neurons;
+            }
         }
+        this->savings_stats->new_example(example_num, savings);
         
         bool verification_result;
         verification_result = ((Output<T>*) layers[this->num_layers-1])->verified;
@@ -158,30 +228,12 @@ class VerifiableFeedForwardNeuralNetwork {
         bool classification_result;
         classification_result = ((Output<T>*) layers[this->num_layers-1])->correctly_classified;
 
-
-        if(DO_DP_BS){
-            // for(int i = 0; i < num_layers; i++){
-            //     profiling(layers[i]);
-            // }
-        } else {
-            // if (!verification_result && do_backsubstitution) {
-            //     // perform backsubstitution
-            //     cout << "couldn't verify... performing backsubstitution....\n";
-            //     this->layers[this->num_layers - 1]->backsubstitute(this->layers[0]);
-            //     verification_result = ((Output<T>*) layers[this->num_layers-1])->verified;
-            // }
-        }
-
         // layers[num_layers - 1]->describe(false, false);
 
         return {classification_result, verification_result};
     }
 
     void describe(bool print_parameters = true, bool print_expressions = false){
-        if(this->party == BOB){
-            return;
-        }
-        
         for(int i = 0; i < num_layers; i++){
             cout << "LAYER " << (i+1) << "\n";
             layers[i]->describe(print_parameters, print_expressions);

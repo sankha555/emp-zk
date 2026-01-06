@@ -134,7 +134,7 @@ vector<int> read_exp_specs(
     vector<int>* test_examples,
     int worker_id
 ){
-    // Read JSON file
+
     std::ifstream file(config_file_path);
     if (!file.is_open()) {
         std::cerr << "Failed to open" << config_file_path << std::endl;
@@ -159,6 +159,24 @@ vector<int> read_exp_specs(
         CURR_DATASET = DATASETS::CIFAR10;
         INPUT_FILE_PATH = "test/ai/data/inputs/cifar10_test_nonconv_" + to_string(worker_id) + ".txt";
 
+    } else if(model_name.compare(0, 5, "adult") == 0) {
+        cerr << model_name << "\n";
+        CURR_DATASET = DATASETS::ADULT;
+        INPUT_FILE_PATH = "test/ai/data/inputs/adult_test_" + to_string(worker_id) + ".txt";
+
+    } else if(model_name.compare(0, 6, "credit") == 0) {
+        cerr << model_name << "\n";
+        CURR_DATASET = DATASETS::CREDIT;
+        INPUT_FILE_PATH = "test/ai/data/inputs/credit_test_" + to_string(worker_id) + ".txt";
+
+    } else if(model_name.compare(0, 6, "german") == 0) {
+        cerr << model_name << "\n";
+        CURR_DATASET = DATASETS::GERMAN;
+        INPUT_FILE_PATH = "test/ai/data/inputs/german_test_" + to_string(worker_id) + ".txt";
+
+    } else {
+        CURR_DATASET = DATASETS::TOY;
+        INPUT_FILE_PATH = "test/ai/data/inputs/toy" + to_string(worker_id) + ".txt";
     }
 
     int num_neurons = config["num_neurons"];
@@ -224,15 +242,36 @@ vector<int> read_exp_specs(
         }
     }
 
+    if(config.contains("bs_mode")){
+        BS_MODE = config["bs_mode"];
+        if(BS_MODE == 1){
+            DO_DP_BS = true;
+        } else {
+            DO_DP_BS = false;
+        }
+    }
+
+    if(config.contains("bs_waiver_thresholds")){
+        BS_WAIVER_THRESHOLDS = config["bs_waiver_thresholds"];
+    }
+
+    if(config.contains("sensitive_attrs")){
+        sensitive_attrs.clear();
+        vector<int> sens_attr = config["sensitive_attrs"];
+        for(int i : sens_attr){
+            sensitive_attrs.insert(i);
+        }
+    }
+
     return layer_specs;
 }
 
 
 template <typename T>
-std::pair<bool, bool> verify_example(VerifiableFeedForwardNeuralNetwork<T>* model, const char* input_file, int input_offset, float epsilon){
+std::pair<bool, bool> verify_example(VerifiableFeedForwardNeuralNetwork<T>* model, const char* input_file, int input_offset, float epsilon, int example_num = 1){
     model->reset();
     model->load_input(input_file, input_offset, epsilon);
-    auto result = model->forward(true, true);
+    auto result = model->forward(example_num, true, true);
     return result;
 }   
 

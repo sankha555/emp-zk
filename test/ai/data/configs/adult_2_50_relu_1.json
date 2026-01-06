@@ -1,0 +1,24 @@
+{
+    "model_name": "adult_2_50_relu",
+    "num_neurons": 50,
+    "layers": [
+        ["INPUT", 14, 14, -1],
+
+        ["AFFINE", 14, "num_neurons", -1],
+        ["RELU", "num_neurons", "num_neurons", -1],
+        
+        ["AFFINE", "num_neurons", "num_neurons", -1],
+        ["RELU", "num_neurons", "num_neurons", -1],
+
+        ["AFFINE", "num_neurons", 2, -1],
+        
+        ["OUTPUT", 2, 2, -1]
+    ],
+    "epsilon": 0.05,
+    "input_min": -1e9,
+    "input_max": 1e9,
+    "do_float": 2,
+    "FXPSCALE": 28,
+    "examples": [],
+    "sensitive_attrs": [9]
+}

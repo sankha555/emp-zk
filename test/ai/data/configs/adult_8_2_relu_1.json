@@ -1,0 +1,24 @@
+{
+    "model_name": "adult_8_2_relu",
+    "num_neurons": 0,
+    "layers": [
+        ["INPUT", 14, 14, -1],
+
+        ["AFFINE", 14, 8, -1],
+        ["RELU", 8, 8, -1],
+        
+        ["AFFINE", 8, 2, -1],
+        ["RELU", 2, 2, -1],
+
+        ["AFFINE", 2, 2, -1],
+        
+        ["OUTPUT", 2, 2, -1]
+    ],
+    "epsilon": 0.1,
+    "input_min": -1e9,
+    "input_max": 1e9,
+    "do_float": 2,
+    "FXPSCALE": 24,
+    "examples": [],
+    "sensitive_attrs": [9]
+}
