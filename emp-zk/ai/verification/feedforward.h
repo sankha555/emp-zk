@@ -208,6 +208,7 @@ class VerifiableFeedForwardNeuralNetwork {
             }
 
             layers[i]->forward(input_layer, prev_layer, do_inference);
+            layers[i]->sanity_check();
             prev_layer = layers[i];
 
             if(std::is_same<T, float>::value && layers[i]->type == AFFINE){

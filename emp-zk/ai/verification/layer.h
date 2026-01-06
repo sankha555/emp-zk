@@ -73,6 +73,17 @@ class Layer {
     virtual void backsubstitute(Layer<T>* input_layer) = 0;
 
     virtual void describe(bool print_parameters = true, bool print_expressions = false) = 0;
+
+    void sanity_check(){
+        if constexpr (std::is_same<float, T>::value){
+            for(int i = 0; i < this->output_size; i++){
+                if(!(lower_bounds[i] <= output[i] && output[i] <= upper_bounds[i])){
+                    cerr << "l <= x <= u fails for neuron " << i+1 << " layer " << this->layer_num << " : " << lower_bounds[i] << " " << output[i] << " " << upper_bounds[i] << "\n";
+                    exit(1);
+                }
+            }
+        }
+    }
 };
 
 

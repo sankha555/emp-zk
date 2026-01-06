@@ -43,7 +43,15 @@ void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   set<int> correctly_classified_examples;
   set<int> verified_examples;
 
-  for(int i = base_example; i < base_example + num_examples; i++){
+  if(base_example != -1){
+    test_examples = vector<int>(num_examples);
+    std::iota(test_examples.begin(), test_examples.end(), base_example+1);
+  }
+  num_examples = test_examples.size();
+
+  for(int j : test_examples){
+    int i = j-1;
+
     auto result = verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
     bool classified = result.first;
     bool verified = result.second;
@@ -108,8 +116,8 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   std::streambuf* original_buf2;
   if(!print_to_stdout) original_buf2 = std::cout.rdbuf(field_file.rdbuf());
 
-  VerifiableFeedForwardNeuralNetwork<float>* model_float = create_model<float>(num_layers, layer_specs, party);
-  model_float->load_weights_and_biases(PARAMETERS_PATH.c_str());
+  // VerifiableFeedForwardNeuralNetwork<float>* model_float = create_model<float>(num_layers, layer_specs, party);
+  // model_float->load_weights_and_biases(PARAMETERS_PATH.c_str());
 
   VerifiableFeedForwardNeuralNetwork<IntFp>* model_field = create_model<IntFp>(num_layers, layer_specs, party);
   model_field->load_weights_and_biases(PARAMETERS_PATH.c_str());
@@ -132,8 +140,8 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   for(int j : test_examples){
     int i = j-1;
 
-    auto res = verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
-    model_field->skip_map = model_float->skip_map;
+    // auto res = verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
+    // model_field->skip_map = model_float->skip_map;
 
 
     if(party == ALICE){
