@@ -24,6 +24,9 @@ void cleartext_update_conv_lower_bounds_using_prev_layers(Conv2D<T>* current_lay
 
     
     for(int i = 0; i < current_layer->output_size; i++){
+        if(current_layer->skippable_neurons->count(i) || current_layer->skippable_neurons2->count(i)){
+            continue;
+        }
 
         assert(
             (*current_layer->backsubstituted_conv_lower_constraints)[i].size() ==
@@ -89,6 +92,10 @@ void cleartext_update_conv_lower_constraints_with_affine(Conv2D<T>* current_laye
 
 
     for(int i = 0; i < current_layer->output_size; i++){
+        if(current_layer->skippable_neurons->count(i) || current_layer->skippable_neurons2->count(i)){
+            continue;
+        }
+
         T* current_lower_constraints = current_layer->backsubstituted_lower_constraints + (i*current_layer->max_coeffs);
         T* prev_coeffs_to_mult = new T[prev_layer->output_size];
 
@@ -128,6 +135,9 @@ void cleartext_update_conv_lower_constraints_with_conv(Conv2D<T>* current_layer,
     vector<vector<int>>* new_predecessors = new vector<vector<int>>(current_layer->output_size);
     
     for(int i = 0; i < current_layer->output_size; i++){
+        if(current_layer->skippable_neurons->count(i) || current_layer->skippable_neurons2->count(i)){
+            continue;
+        }
 
         assert(
             (*current_layer->backsubstituted_conv_lower_constraints)[i].size() ==
@@ -220,6 +230,9 @@ void cleartext_update_conv_lower_constraints_with_activation(Conv2D<T>* current_
     vector<vector<int>>* new_predecessors = new vector<vector<int>>(current_layer->output_size);
 
     for(int i = 0; i < current_layer->output_size; i++){
+        if(current_layer->skippable_neurons->count(i) || current_layer->skippable_neurons2->count(i)){
+            continue;
+        }
 
         assert(
             (*current_layer->backsubstituted_conv_lower_constraints)[i].size() ==
@@ -286,6 +299,9 @@ template <typename T>
 void cleartext_update_conv_upper_bounds_using_prev_layers(Conv2D<T>* current_layer, Layer<T>* prev_layer){
 
     for(int i = 0; i < current_layer->output_size; i++){
+        if(current_layer->skippable_neurons->count(i) || current_layer->skippable_neurons2->count(i)){
+            continue;
+        }
 
         assert(
             (*current_layer->backsubstituted_conv_upper_constraints)[i].size() ==
@@ -344,6 +360,10 @@ void cleartext_update_conv_upper_constraints_with_affine(Conv2D<T>* current_laye
     }
 
     for(int i = 0; i < current_layer->output_size; i++){
+        if(current_layer->skippable_neurons->count(i) || current_layer->skippable_neurons2->count(i)){
+            continue;
+        }
+
         T* current_upper_constraints = current_layer->backsubstituted_upper_constraints + (i*current_layer->max_coeffs);
         T* prev_coeffs_to_mult = new T[prev_layer->output_size];
         
@@ -383,6 +403,9 @@ void cleartext_update_conv_upper_constraints_with_conv(Conv2D<T>* current_layer,
     vector<vector<int>>* new_predecessors = new vector<vector<int>>(current_layer->output_size);
     
     for(int i = 0; i < current_layer->output_size; i++){
+        if(current_layer->skippable_neurons->count(i) || current_layer->skippable_neurons2->count(i)){
+            continue;
+        }
 
         assert(
             (*current_layer->backsubstituted_conv_upper_constraints)[i].size() ==
@@ -475,6 +498,10 @@ void cleartext_update_conv_upper_constraints_with_activation(Conv2D<T>* current_
     vector<vector<int>>* new_predecessors = new vector<vector<int>>(current_layer->output_size);
 
     for(int i = 0; i < current_layer->output_size; i++){
+
+        if(current_layer->skippable_neurons->count(i) || current_layer->skippable_neurons2->count(i)){
+            continue;
+        }
 
         assert(
             (*current_layer->backsubstituted_conv_upper_constraints)[i].size() ==

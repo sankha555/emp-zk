@@ -41,6 +41,10 @@ class Layer {
     float* lower_diff;
     float* upper_diff;
     float* diff;
+    set<int>* skippable_neurons;
+    set<int>* skippable_neurons2;
+
+    vector<pair<float, pair<int, int>>>* neuron_info;
 
     // PROFILING
     double time_for_bs = 0;
@@ -55,6 +59,15 @@ class Layer {
         this->output_size = output_size;
         this->max_coeffs = max_coeffs;
         this->party = party;
+
+        
+        this->lower_diff = new float[max(1, this->output_size)]{0};
+        this->upper_diff = new float[max(1, this->output_size)]{0};
+        this->diff = new float[max(1, this->output_size)]{0};
+        this->neuron_info = new vector<pair<float, pair<int, int>>>();
+
+        this->skippable_neurons = new set<int>();
+        this->skippable_neurons2 = new set<int>();
     }
 
     virtual ~Layer() = default;
@@ -69,7 +82,7 @@ class Layer {
 
     virtual void reset() = 0;
 
-    virtual void forward(Layer<T>* input_layer, Layer<T>* prev_layer, bool do_inference = true) = 0;
+    virtual void forward(Layer<T>* input_layer, Layer<T>* prev_layer, bool do_inference = true, bool use_bs_heuristic = false) = 0;
 
     virtual void backsubstitute(Layer<T>* input_layer) = 0;
 

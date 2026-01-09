@@ -83,6 +83,9 @@ class Conv2D : public Layer<T> {
         this->output_size = this->out_channels * this->out_h * this->out_w;
         this->output = new T[this->output_size];
 
+        this->lower_diff = new float[this->output_size]{0};
+        this->upper_diff = new float[this->output_size]{0};
+        this->diff = new float[this->output_size]{0};
 
         this->kernel = new Kernel2D<T>(this->out_channels, this->in_channels, this->kernel_h, this->kernel_w, this->party);
         this->pixel_buffer = new T[this->in_channels * this->kernel_h * this->kernel_w];
@@ -111,7 +114,7 @@ class Conv2D : public Layer<T> {
         this->backsubstituted_conv_upper_constraints = new vector<vector<T>>(this->output_size);
     }
 
-    void forward(Layer<T>* input_layer, Layer<T>* prev_layer, bool do_inference = true){
+    void forward(Layer<T>* input_layer, Layer<T>* prev_layer, bool do_inference = true, bool use_bs_heuristic = false){
         this->prev_layer = prev_layer;
 
         // clone the input
@@ -130,6 +133,17 @@ class Conv2D : public Layer<T> {
             compute_upper_bounds();
 
             backsubstitute(input_layer);
+
+            if(use_bs_heuristic){
+                // apply_bs_heuristics(this, input_layer);   
+                if constexpr (std::is_same<T, float>::value) {
+                    analyse_and_unset_bs_bounds(this, input_layer);
+                }
+            } else {
+                if constexpr (std::is_same<T, float>::value) {
+                    collect_bound_statistics(this);
+                }
+            }
         }
 
         if(do_inference){
@@ -438,7 +452,6 @@ class Conv2D : public Layer<T> {
 
     }
 
-
     void compute_lower_constraints(){
         
         for(int z = 0; z < this->out_channels; z++){
@@ -512,6 +525,13 @@ class Conv2D : public Layer<T> {
 
 
     void backsubstitute(Layer<T>* input_layer){
+        if constexpr (std::is_same<float, T>::value){
+            for(int i = 0; i < this->output_size; i++){
+                this->lower_diff[i] = this->lower_bounds[i];
+                this->upper_diff[i] = this->upper_bounds[i];
+                this->diff[i] = this->upper_bounds[i] - this->lower_bounds[i];
+            }
+        }
         
         if(DO_DP_BS){
             // cout << "LAYER " << this->layer_num << "\n";
@@ -752,6 +772,19 @@ class Conv2D : public Layer<T> {
             }
             cout << "\n\n";
 
+            if constexpr (std::is_same<float, T>::value){
+                cout << "\n\n";
+                cout << "Lower Diff:\n";
+                for(int i = 0; i < this->output_size; i++){
+                    cout << this->diff[i] << " ";
+                }
+
+                cout << "\nUpper Diff:\n";
+                for(int i = 0; i < this->output_size; i++){
+                    cout << this->diff[i] << " ";
+                }
+                cout << "\n";
+            }
 
             cout << "Lower Expression (" << this->layer_num << "):\n"; 
             

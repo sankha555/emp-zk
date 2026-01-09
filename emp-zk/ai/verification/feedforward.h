@@ -12,7 +12,6 @@
 using namespace emp;
 using namespace std;
 
-
 typedef struct stats {
     long min_savings;
     long min_example;
@@ -60,6 +59,8 @@ class VerifiableFeedForwardNeuralNetwork {
     stats* savings2_stats;
     stats* savings_stats;
 
+    int mode = 0;  // 0 = analyse, 1 = save
+    vector<pair<float, pair<int, int>>>* global_neuron_info;
     map<int, set<int>*> skip_map;
     map<int, set<int>*> skip_map2;
 
@@ -72,6 +73,8 @@ class VerifiableFeedForwardNeuralNetwork {
         this->savings2_stats = new stats();
         this->savings_stats = new stats();
         // validate_layers();
+
+        this->global_neuron_info = new vector<pair<float, pair<int, int>>>();
     }
 
     void validate_layers(){
@@ -188,6 +191,7 @@ class VerifiableFeedForwardNeuralNetwork {
             this->skip_map = {};
             this->skip_map2 = {};
         }
+        this->global_neuron_info = new vector<pair<float, pair<int, int>>>();
     }
 
 
@@ -195,55 +199,115 @@ class VerifiableFeedForwardNeuralNetwork {
         Layer<T>* prev_layer = nullptr;
         Layer<T>* input_layer = layers[0];
 
-        int total_neurons_saved = 0;
-        int total_neurons = 0;
-
         long savings1, savings2, savings, total_computations;
         savings1 = savings2 = savings = total_computations = 0;
         for(int i = 0; i < num_layers; i++){
             layers[i]->layer_num = i+1;
 
-            if(std::is_same<T, IntFp>::value && layers[i]->type == AFFINE && this->skip_map.count(layers[i]->layer_num)){
-                ((Affine<T>*) layers[i])->skippable_neurons = this->skip_map[layers[i]->layer_num];
-                ((Affine<T>*) layers[i])->skippable_neurons2 = this->skip_map2[layers[i]->layer_num];
+            bool use_bs_heuristic = false;
+            if(this->mode == 1){
+                use_bs_heuristic = true;
+
+                if(layers[i]->type == AFFINE || layers[i]->type == CONV2D){
+                    if (this->skip_map.count(layers[i]->layer_num)){
+                        ((Layer<T>*) layers[i])->skippable_neurons = this->skip_map[layers[i]->layer_num];
+                    }
+
+                    if (this->skip_map2.count(layers[i]->layer_num)){
+                        ((Layer<T>*) layers[i])->skippable_neurons2 = this->skip_map2[layers[i]->layer_num];
+                    }
+                }
             }
 
-            layers[i]->forward(input_layer, prev_layer, do_inference);
+            layers[i]->forward(input_layer, prev_layer, do_inference, use_bs_heuristic);
             layers[i]->sanity_check();
-            prev_layer = layers[i];
 
-            if(std::is_same<T, float>::value && layers[i]->type == AFFINE){
-                total_neurons_saved += ((Affine<T>*) layers[i])->neurons_saved;
-                int m = ((Affine<T>*) layers[i])->output_size;
-                total_neurons += m;
-
-                // savings += ((Affine<T>*) layers[i])->neurons_saved * (i/2 * (m*m + m)) + ((Affine<T>*) layers[i])->skippable_neurons2->size() * ((i-2)/2 * (m*m + m));
-                pair<long, long> sv = ((Affine<T>*) layers[i])->get_raw_savings();
-                savings1 += sv.first;
-                savings2 += sv.second;
-                savings += sv.first + sv.second;
-                total_computations += m * m * m * i/2; 
-                
-
-                this->skip_map[layers[i]->layer_num] = ((Affine<T>*) layers[i])->skippable_neurons;
-                this->skip_map2[layers[i]->layer_num] = ((Affine<T>*) layers[i])->skippable_neurons2;
+            if (this->mode == 0){
+                this->aggregate_neuron_info(layers[i]);
+            } else {
+                this->aggregate_savings(layers[i], &savings1, &savings2, &savings, &total_computations);
             }
-        }
-        
-        bool verification_result;
-        verification_result = ((Output<T>*) layers[this->num_layers-1])->verified;
 
-        bool classification_result;
+            prev_layer = layers[i];
+        }
+
+
+        bool verification_result, classification_result;
+        verification_result = ((Output<T>*) layers[this->num_layers-1])->verified;
         classification_result = ((Output<T>*) layers[this->num_layers-1])->correctly_classified;
-        if(classification_result == true){
+
+        if(this->mode == 0 && classification_result == true){
+            this->select_neurons_for_heuristics(example_num);
+        } else if(this->mode == 1 && classification_result == true){
             this->savings1_stats->new_example(example_num, savings1, total_computations);
             this->savings2_stats->new_example(example_num, savings2, total_computations);
             this->savings_stats->new_example(example_num, savings, total_computations);
         }
 
-        // layers[num_layers - 1]->describe(false, false);
-
         return {classification_result, verification_result};
+    }
+
+    void aggregate_neuron_info(Layer<T>* layer){
+        if constexpr (std::is_same<T, float>::value){
+            if (layer->neuron_info->size() > 0){
+                for(int i = 0; i < layer->neuron_info->size(); i++){
+                    this->global_neuron_info->push_back((*layer->neuron_info)[i]);
+                }
+            }
+        }
+    }
+
+    void select_neurons_for_heuristics(int example_num){
+        if constexpr (std::is_same<T, float>::value){
+            this->skip_map = {};
+            this->skip_map2 = {};
+
+            sort(this->global_neuron_info->begin(), this->global_neuron_info->end());
+        
+            int n = this->global_neuron_info->size();
+            float threshold_fraction1 = THRESHOLD_FRACTION1, threshold_fraction2 = THRESHOLD_FRACTION2;
+            
+            int i = 0;
+            for(auto info : *this->global_neuron_info){
+                int layer_num = info.second.first;
+                int nid = info.second.second;
+
+                if(i < threshold_fraction1 * n){
+                    if(!this->skip_map.count(layer_num)){
+                        this->skip_map[layer_num] = new set<int>();
+                    }
+                    this->skip_map[layer_num]->insert(nid);
+                } else if (i < threshold_fraction2 * n){
+                    if(!this->skip_map2.count(layer_num)){
+                        this->skip_map2[layer_num] = new set<int>();
+                    }
+                    this->skip_map2[layer_num]->insert(nid);
+                } else {
+                    break;
+                }
+
+                i++;
+            }
+
+
+            string filepath = HEURISTICS_FILE_PATH + "/skip_map1.json";
+            write_to_json_file(example_num, filepath.c_str(), this->skip_map);
+
+            filepath = HEURISTICS_FILE_PATH + "/skip_map2.json";
+            write_to_json_file(example_num, filepath.c_str(), this->skip_map2);
+        }
+    }
+
+    void aggregate_savings(Layer<T>* layer, long* savings1, long* savings2, long* savings, long* total_computations){
+        if constexpr (std::is_same<T, float>::value){
+            if (layer->type == AFFINE || layer->type == CONV2D){
+                vector<long> sv = get_raw_savings((Layer<T>*) layer);
+                *savings1 += sv[0];
+                *savings2 += sv[1];
+                *savings += sv[0] + sv[1];
+                *total_computations += sv[2];
+            }
+        }
     }
 
     void describe(bool print_parameters = true, bool print_expressions = false){

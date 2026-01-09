@@ -37,6 +37,7 @@ enum SPEC_LABELS{
     CONV_MAX_COEFFS_INDEX = 11
 };
 
+
 template <typename T>
 VerifiableFeedForwardNeuralNetwork<T>* create_model(int num_layers, int* layer_specs, int party){
     Layer<T>** layers = new Layer<T>*[num_layers];
@@ -244,6 +245,29 @@ vector<int> read_exp_specs(
         BS_WAIVER_THRESHOLDS2 = config["bs_waiver_thresholds2"];
     }
 
+    for(auto k : BS_WAIVER_THRESHOLDS){
+        if(BS_WAIVER_THRESHOLDS[k.first] != -1){
+            FORCE_STOP_PRINTING = true;
+        }
+    }
+    for(auto k : BS_WAIVER_THRESHOLDS2){
+        if(BS_WAIVER_THRESHOLDS2[k.first] != -1){
+            FORCE_STOP_PRINTING = true;
+        }
+    }
+
+
+    HEURISTICS_FILE_PATH += model_name;
+    if (stat(HEURISTICS_FILE_PATH.c_str(), &st)) {
+        mkdir(HEURISTICS_FILE_PATH.c_str(), 0755) == 0;
+    }
+    std::ofstream outfile(HEURISTICS_FILE_PATH + "/skip_map1.json");
+    outfile.close();
+
+    std::ofstream outfile2(HEURISTICS_FILE_PATH + "/skip_map2.json");
+    outfile2.close();
+
+
     return layer_specs;
 }
 
@@ -252,7 +276,18 @@ template <typename T>
 std::pair<bool, bool> verify_example(VerifiableFeedForwardNeuralNetwork<T>* model, const char* input_file, int input_offset, float epsilon, int example_num = 1){
     model->reset();
     model->load_input(input_file, input_offset, epsilon);
-    auto result = model->forward(example_num, true, true);
+    
+    pair<bool, bool> result;
+    if constexpr (std::is_same<IntFp, T>::value){
+        model->mode = 1;
+        result = model->forward(example_num, true, true); 
+    } else {
+        // model->mode = 0;
+        // model->forward(example_num, true, true);
+        model->mode = 1;
+        result = model->forward(example_num, true, true);
+    }
+
     return result;
 }   
 
@@ -267,5 +302,9 @@ void preprocess_input(int n, float* inputs, float mean, float sdev){
 void preprocess_input(int dims, int n_per_dim){
     ;
 }
+
+
+
+
 
 #endif

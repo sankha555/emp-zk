@@ -42,7 +42,7 @@ class ReLU : public Layer<T> {
         this->is_exact = new bool[output_size]{false};
     }
 
-    void forward(Layer<T>* input_layer, Layer<T>* prev_layer, bool do_inference = true){
+    void forward(Layer<T>* input_layer, Layer<T>* prev_layer, bool do_inference = true, bool use_bs_heuristic = false){
         this->prev_layer = prev_layer;
 
         for(int i = 0; i < this->input_size; i++){

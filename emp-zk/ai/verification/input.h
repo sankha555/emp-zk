@@ -40,7 +40,7 @@ class Input : public Layer<T> {
     }
 
 
-    void forward(Layer<T>* input_layer, Layer<T>* prev_layer, bool do_inference = true){
+    void forward(Layer<T>* input_layer, Layer<T>* prev_layer, bool do_inference = true, bool use_bs_heuristic = false){
         assert(prev_layer == NULL && "Input layer should not have any input from a previous layer!\n");
 
         if(!ONLY_INFERENCE){

@@ -11,6 +11,7 @@
 #include <emp-zk/ai/verification/feedforward.h>
 
 #include <emp-zk/ai/verification/bounds_utils.h>
+#include <emp-zk/ai/verification/optimization.h>
 // #include <emp-zk/ai/verification/opt_bounds_utils.h>
 // #include <emp-zk/ai/verification/conv_bounds_utils.h>
 #include <emp-zk/ai/verification/secure_conv_opt.h>

@@ -5,6 +5,7 @@
 
 #include "emp-tool/emp-tool.h"
 #include "emp-zk/emp-zk.h"
+#include "emp-zk/ai/json.hpp"
 
 #include <fstream>
 #include <map>
@@ -18,13 +19,19 @@
 
 using namespace std;
 using namespace emp;
+using json = nlohmann::json;
+
 
 int FXPSCALE = 20;
 bool DO_DP_BS = true;
+bool FORCE_STOP_PRINTING = false;
 int BS_MODE = 0;    // 0 = no backsubstitution, 1 = DP_BS, 2 = Sankha BS
 float BS_WAIVER_FRACTION = 0.3;
+float THRESHOLD_FRACTION1 = 0.3;
+float THRESHOLD_FRACTION2 = 0.3;
 map<string, float> BS_WAIVER_THRESHOLDS;
 map<string, float> BS_WAIVER_THRESHOLDS2;
+string HEURISTICS_FILE_PATH = "test/ai/data/heuristics/";
 
 IntFp FIELD_ZERO;
 IntFp FIELD_ONE;
@@ -300,5 +307,43 @@ void read_next_elements(size_t n, float* buffer, size_t offset, const char* file
         }
     }
 }
+
+inline json serialize_skip_map(const std::map<int,std::set<int>*>& skip_map) {
+    json j;
+    for (const auto& [k, v_ptr] : skip_map) {
+        json arr = json::array();
+        if (v_ptr) {
+            for (int x : *v_ptr)
+                arr.push_back(x);
+        }
+        // force array to be single line
+        j[std::to_string(k)] = json::parse(arr.dump());
+    }
+    return j;
+}
+
+inline void write_to_json_file(int example_num, const char* filepath, const std::map<int, std::set<int>*> &skip_map){
+    json root;
+
+    // load existing file if present
+    std::ifstream in(filepath);
+    if (in.good() && in.peek() != std::ifstream::traits_type::eof()) {
+        try {
+            in >> root;
+        } catch (const json::parse_error& e) {
+            root = json::object(); // reset
+        }
+    }
+    in.close();
+
+    // insert new snapshot
+    root[std::to_string(example_num)] = serialize_skip_map(skip_map);
+
+    // write back with 4-space indent (dicts in separate lines, arrays in single line)
+    std::ofstream out(filepath);
+    out << root.dump(4);
+    out.close();
+}
+
 
 #endif
