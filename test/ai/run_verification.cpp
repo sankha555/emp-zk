@@ -28,7 +28,6 @@ int layer_specs[] = {};
 
 
 void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_layers){
-  auto start = clock_start();
 
   int num_examples_verified = 0;
   int num_examples_classified = 0;
@@ -43,7 +42,17 @@ void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   set<int> correctly_classified_examples;
   set<int> verified_examples;
 
-  for(int i = base_example; i < base_example + num_examples; i++){
+  if(base_example != -1){
+    test_examples = vector<int>(num_examples);
+    std::iota(test_examples.begin(), test_examples.end(), base_example+1);
+  }
+  num_examples = test_examples.size();
+
+  auto start = clock_start();
+  double tt = 0;
+  for(int j : test_examples){
+    int i = j-1;
+    
     auto result = verify_example<float>(model_float, INPUTS_PATH.c_str(), i*(NUM_FEATURES[CURR_DATASET]+1), epsilon, i+1);
     bool classified = result.first;
     bool verified = result.second;
@@ -61,14 +70,17 @@ void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
 
     if(party == ALICE)    cout << "EXAMPLE " << i+1 << " : " << (verified ? "YES" : "NO") << "\n";
 
-    model_float->describe(false, false);
+    tt = time_from(start);
+    if(party == ALICE)   cerr << "\rVerified: " << num_examples_verified << "/" << (i+1) << " images [Avg. time = " << (tt/(i+1))/1e6 << " sec]" << std::flush;
+
+    if (!FORCE_STOP_PRINTING && party == ALICE)    model_float->describe(false, false);
   }
 
-  if(party == ALICE) cerr << "\nSavings due to neuron skipping:\n";
-  if(party == ALICE) model_float->savings1_stats->print_stats();
+  // if(party == ALICE) cerr << "\nSavings due to neuron skipping:\n";
+  // if(party == ALICE) model_float->savings1_stats->print_stats();
 
-  if(party == ALICE) cerr << "\nSavings due to prev. layer bounds:\n";
-  if(party == ALICE) model_float->savings2_stats->print_stats();
+  // if(party == ALICE) cerr << "\nSavings due to prev. layer bounds:\n";
+  // if(party == ALICE) model_float->savings2_stats->print_stats();
 
   if(party == ALICE) cerr << "\nCoupled savings:\n";
   if(party == ALICE) model_float->savings_stats->print_stats();
@@ -76,7 +88,7 @@ void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
 
   if(party == ALICE)   cout << "Verified " << num_examples_verified << "/" << num_examples << " examples [ correctly classified = " << num_examples_classified << " ]\n";
 
-  double tt = time_from(start);
+  tt = time_from(start);
   if(party == ALICE)   cout << "\nAvg. time to verify: " << (tt/1000000)/num_examples << " s\n";
 
   if(party == ALICE){
@@ -247,7 +259,7 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
     total_time += tt;
 
     if(print_to_stdout){
-      if(party == ALICE)   cout << "\rVerified: " << num_examples_verified << "/" << (i+1) << " images [Avg. time = " << (tt/(i+1))/1e6 << " sec]" << std::flush;
+      if(party == ALICE)   cerr << "\rVerified: " << num_examples_verified << "/" << (i+1) << " images [Avg. time = " << (tt/(i+1))/1e6 << " sec]" << std::flush;
     } else {
       if(party == ALICE)   cout << (verified ? "YES" : "NO") << "\n";
     }
@@ -340,11 +352,11 @@ int main(int argc, char **argv) {
   }
 
   if(argc > 6){
-    BS_WAIVER_FRACTION = (float) atof(argv[6]);
+    THRESHOLD_FRACTION1 = (float) atof(argv[6]);
   }
 
   if(argc > 7){
-    print_to_stdout = (bool) atoi(argv[7]);
+    THRESHOLD_FRACTION2 = (float) atof(argv[7]);
   }
 
   cout << "PARTY = " << party << "\n";
