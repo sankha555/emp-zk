@@ -253,6 +253,14 @@ def h2_search(config_path, p1_results, model_name, layer_stats, affine_indices, 
     print("PHASE 2 SEARCH FOR HEURISTIC 2")
     print("="*80)
     
+    accuracy_to_best = {}
+    for result in p1_results:
+        acc = result['verified']
+        if acc not in accuracy_to_best or result['avg_savings_pct'] > accuracy_to_best[acc]['avg_savings_pct']:
+            accuracy_to_best[acc] = result
+    p1_results = accuracy_to_best.values()        
+    
+    
     results = []
     best_result = {'verified': 0, 'avg_savings': 0, 'avg_savings_pct': 0}
     
@@ -260,6 +268,7 @@ def h2_search(config_path, p1_results, model_name, layer_stats, affine_indices, 
     
     for p1_result in p1_results:
         combo1 = p1_result['combo']
+        p1_acc = p1_result['verified']
         
         config = load_config(config_path)
         config['bs_waiver_thresholds'] = combo1
@@ -274,7 +283,7 @@ def h2_search(config_path, p1_results, model_name, layer_stats, affine_indices, 
                         
             layerwise_remaining_thresholds[layer_num] = []
             for p in range(10, 100, 10):
-                if combo1[str(layer_num)] != -1 and stats[f"{p}th"] > combo1[str(layer_num)]:
+                if combo1[(layer_num)] != -1 and stats[f"{p}th"] > combo1[(layer_num)]:
                     layerwise_remaining_thresholds[layer_num].append(stats[f"{p}th"])
             
             if len(layerwise_remaining_thresholds[layer_num]) == 0:
@@ -335,12 +344,13 @@ def h2_search(config_path, p1_results, model_name, layer_stats, affine_indices, 
                 result['config'] = config['bs_waiver_thresholds'].copy()
                 result['config2'] = config['bs_waiver_thresholds2'].copy()
             
-                if result['avg_savings_pct'] > best_result['avg_savings_pct']:
+                if result['avg_savings_pct'] > p1_acc:
                     best_result = result.copy()
                     print(f"*** PHASE 2 NEW BEST: {best_result['verified']} verified, {best_result['avg_savings_pct']} % savings ***")
                     results.append(result)
                     
-                    
+    return results
+
 
 def search_phase2(config_path, model_name, layer_stats, affine_indices,
                   min_verified, max_verified, num_examples=100, phase1_results=None, last_percentile = 90, best_config1 = None):
@@ -411,28 +421,38 @@ def search_phase2(config_path, model_name, layer_stats, affine_indices,
     return results
 
 def plot_results(all_results, output_file='threshold_search_results.png'):
-    """Plot verification accuracy vs average savings."""
-    # Group by verification accuracy
-    accuracy_to_savings = defaultdict(list)
-    
+    """Plot verification accuracy vs savings."""
+
+    accuracy_to_avg_savings = defaultdict(list)
+    accuracy_to_max_savings = defaultdict(list)
+
     for result in all_results:
-        accuracy_to_savings[result['verified']].append(result['avg_savings_pct'])
-    
-    # Get max savings for each accuracy level
-    accuracies = sorted(accuracy_to_savings.keys())
-    max_savings = [max(accuracy_to_savings[acc]) for acc in accuracies]
-    
+        acc = result['verified']
+        accuracy_to_avg_savings[acc].append(result['avg_savings_pct'])
+        accuracy_to_max_savings[acc].append(result['max_savings_pct'])
+
+    accuracies = sorted(accuracy_to_avg_savings.keys())
+
+    max_avg_savings = [max(accuracy_to_avg_savings[a]) for a in accuracies]
+    max_max_savings = [max(accuracy_to_max_savings[a]) for a in accuracies]
+
     plt.figure(figsize=(10, 6))
-    plt.plot(accuracies, max_savings, 'o-', linewidth=2, markersize=8)
+    plt.plot(accuracies, max_avg_savings, 'o-', linewidth=2, markersize=8,
+             label='Max Avg Savings (%)')
+    plt.plot(accuracies, max_max_savings, 's--', linewidth=2, markersize=8,
+             label='Max Savings (%)')
+
     plt.xlabel('Verification Accuracy (# Verified)', fontsize=12)
-    plt.ylabel('% Average Savings', fontsize=12)
-    plt.title('Verification Accuracy vs Average Savings', fontsize=14)
+    plt.ylabel('Savings (%)', fontsize=12)
+    plt.title('Verification Accuracy vs Savings', fontsize=14)
     plt.grid(True, alpha=0.3)
+    plt.legend()
     plt.tight_layout()
     plt.savefig(output_file, dpi=150)
     print(f"\nPlot saved to {output_file}")
     plt.close()
-
+    
+    
 def save_best_configs(all_results, output_file='best_configs.json'):
     """Save best configuration for each accuracy level."""
     accuracy_to_best = {}
@@ -475,14 +495,14 @@ MODEL_INFO = {
     
     'cifar_relu_conv_small': {
         'min_v1': 40,
-        'p2_filter': 44,
+        'p2_filter': 42,
     },
 }
 
 
 def main():
     # Configuration
-    model_name = 'cifar_relu_conv_small'
+    model_name = 'mnist_relu_6_100'
     config_path = f'test/ai/data/configs/{model_name}_1.json'
     stats_file = f'test/ai/data/heuristics/{model_name}/thresholds.json'
     
@@ -518,44 +538,46 @@ def main():
     start_time = time.time()
     
     # Phase 1: Increase thresholds
-    phase1_results, best_phase1, last_percentile = [{
-        "verified": 46,
-        "avg_savings_pct": 4,
-        "max_savings_pct": 4,
-        "percentile": 0,
-        "phase": 1,
-        "config": {
-            "4": -1,
-            "6": 3.275,
-            "8": -1
-        },
-        "combo": {
-            "4": -1,
-            "6": 3.275,
-            "8": -1
-        },
-        "config2": {
-            "4": -1,
-            "6": -1,
-            "8": -1
-        }
-    }], None, None
-    # phase1_results, best_phase1, last_percentile = search_phase1(
-    #     config_path, model_name, layer_stats, affine_indices,
-    #     min_verified_p1, max_verified, num_examples
-    # )
-       
+    # phase1_results, best_phase1, last_percentile = [{
+    #     "verified": 46,
+    #     "avg_savings_pct": 4,
+    #     "max_savings_pct": 4,
+    #     "percentile": 0,
+    #     "phase": 1,
+    #     "config": {
+    #         "4": -1,
+    #         "6": 3.275,
+    #         "8": -1
+    #     },
+    #     "combo": {
+    #         "4": -1,
+    #         "6": 3.275,
+    #         "8": -1
+    #     },
+    #     "config2": {
+    #         "4": -1,
+    #         "6": -1,
+    #         "8": -1
+    #     }
+    # }], None, None
     
-        
+    phase1_results, best_phase1, last_percentile = search_phase1(
+        config_path, model_name, layer_stats, affine_indices,
+        min_verified_p1, max_verified, num_examples
+    )
+       
+
     # Phase 2: Relax with threshold2
     filtered_p1_results = phase1_results
-    # filtered_p1_results = [r for r in phase1_results if r['verified'] >= p2_filter]
+    filtered_p1_results = [r for r in phase1_results if r['verified'] >= p2_filter]
     phase2_results = []
     phase2_results = h2_search(config_path, filtered_p1_results, model_name, layer_stats, affine_indices, min_verified_p1, max_verified, num_examples)
     
     # Combine results
-    all_results = phase1_results + phase2_results
-    # all_results = [result for result in all_results if result['verified'] >= min_verified]
+    all_results = phase1_results
+    if len(phase2_results) > 0: 
+        all_results = all_results + phase2_results
+    all_results = [result for result in all_results if result['verified'] >= min_verified_p1]
     
     # Find overall best
     best_overall = max(all_results, key=lambda x: (x['avg_savings_pct'], x['verified']))
