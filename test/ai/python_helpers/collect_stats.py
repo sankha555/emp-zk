@@ -281,7 +281,7 @@ def collect_and_write_statistics(input_file, hist_output='layer_histograms.png',
 
 
 if __name__ == "__main__":
-    model_name = 'cifar_relu_conv_small'
+    model_name = 'cifar_conv_relu_med_pgd0.03'
     logfile = f'test/ai/data/logs/{model_name}/{model_name}_float_worker_1.txt'
     
     os.makedirs(f'{HEURISTICS_PATH}/{model_name}', exist_ok=True)

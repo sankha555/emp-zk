@@ -1,0 +1,87 @@
+{
+    "43-37": {
+        "verified": 43,
+        "avg_savings_pct": 37,
+        "max_savings_pct": 92,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "4": -1,
+            "6": 2.841,
+            "8": -1
+        },
+        "bs_waiver_thresholds2": {
+            "4": -1,
+            "6": -1,
+            "8": -1
+        }
+    },
+    "51-17": {
+        "verified": 51,
+        "avg_savings_pct": 17,
+        "max_savings_pct": 92,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "4": -1,
+            "6": 2.482,
+            "8": -1
+        },
+        "bs_waiver_thresholds2": {
+            "4": -1,
+            "6": -1,
+            "8": -1
+        }
+    },
+    "53-10": {
+        "verified": 53,
+        "avg_savings_pct": 10,
+        "max_savings_pct": 10,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "4": 0.64,
+            "6": 2.482,
+            "8": -1
+        },
+        "bs_waiver_thresholds2": {
+            "4": -1,
+            "6": -1,
+            "8": -1
+        }
+    },
+    "54-10": {
+        "verified": 54,
+        "avg_savings_pct": 10,
+        "max_savings_pct": 10,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "4": 0.408,
+            "6": 2.482,
+            "8": -1
+        },
+        "bs_waiver_thresholds2": {
+            "4": -1,
+            "6": -1,
+            "8": -1
+        }
+    },
+    "56-0": {
+        "verified": 56,
+        "avg_savings_pct": 0,
+        "max_savings_pct": 0,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "4": -1,
+            "6": -1,
+            "8": -1
+        },
+        "bs_waiver_thresholds2": {
+            "4": -1,
+            "6": -1,
+            "8": -1
+        }
+    }
+}

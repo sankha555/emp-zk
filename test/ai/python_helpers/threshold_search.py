@@ -6,6 +6,7 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import jsbeautifier
 from itertools import product
+import os
 
 options = jsbeautifier.default_options()
 
@@ -35,8 +36,8 @@ def run_verification(model_name, num_examples=100, epsilon1=0.1, epsilon2=0.15):
         proc2 = subprocess.Popen(cmd2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         
         # Wait for both to complete (with timeout)
-        output1, err1 = proc1.communicate(timeout=600)
-        output2, _ = proc2.communicate(timeout=600)
+        output1, err1 = proc1.communicate()
+        output2, _ = proc2.communicate()
         
         # Use output from first command only
         output = output1 + err1
@@ -101,7 +102,7 @@ def get_layer_thresholds(layer_stats):
     layer_thresholds = {}
     
     for layer in layer_stats:
-        if 'Layer 2' in layer or 'Layer 4 (AFFINE' in layer or 'Layer 18 (AFFINE' in layer:
+        if 'Layer 2' in layer or 'Layer 4 (AFFINE' in layer:
             print(layer)
             continue
         
@@ -240,9 +241,12 @@ def search_phase1(config_path, model_name, layer_stats, affine_indices,
                         # this new result gives better savings with same accuracy
                         results.remove(existing_best_combo_for_this_accuracy)
                         results.append(result)
-                
             
             last_percentile = percentile
+                
+        else:     
+            print("RESULT NOT PROCURED")  
+            
             
     print("="*40, "Phase 1 completed", "="*40)
     
@@ -493,18 +497,47 @@ MODEL_INFO = {
         'p2_filter': 50,
     },
     
+    'cifar_relu_6_100': {
+        'min_v1': 14,
+        'p2_filter': 14,
+    },
+    
     'cifar_relu_conv_small': {
         'min_v1': 40,
         'p2_filter': 42,
+    },
+    
+    'cifar_conv_relu_small_pgd': {
+        'min_v1': 50,
+        'p2_filter': 55,
+    },
+    
+    'cifar_relu_conv_med': {
+        'min_v1': 40,
+        'p2_filter': 42,
+    },
+    
+    'cifar_conv_relu_med_pgd0.03': {
+        'min_v1': 40,
+        'p2_filter': 42,
+    },
+    
+    'cifar_relu_6_500_pgd0.03': {
+        'min_v1': 45,
+        'p2_filter': 45,
     },
 }
 
 
 def main():
     # Configuration
-    model_name = 'mnist_relu_6_100'
+    model_name = 'cifar_conv_relu_med_pgd0.03'
     config_path = f'test/ai/data/configs/{model_name}_1.json'
     stats_file = f'test/ai/data/heuristics/{model_name}/thresholds.json'
+    
+    best_configs_file = f'test/ai/data/heuristics/{model_name}/best_configs.json'
+    tradeoff_graph_file = f'test/ai/data/heuristics/{model_name}/savings-accuracy.png'
+
     
     min_verified_p1 = MODEL_INFO[model_name]['min_v1']  # Minimum acceptable verified examples
     p2_filter = MODEL_INFO[model_name]['p2_filter']  # Minimum acceptable verified examples
@@ -565,7 +598,9 @@ def main():
         config_path, model_name, layer_stats, affine_indices,
         min_verified_p1, max_verified, num_examples
     )
-       
+    
+    plot_results(phase1_results, tradeoff_graph_file)
+    save_best_configs(phase1_results, best_configs_file)
 
     # Phase 2: Relax with threshold2
     filtered_p1_results = phase1_results
@@ -595,8 +630,8 @@ def main():
     print(f"  Phase: {best_overall['phase']}, Percentile: {best_overall['percentile']}th")
     
     # Generate outputs
-    plot_results(all_results, 'threshold_search_results.png')
-    save_best_configs(all_results, 'best_configs.json')
+    plot_results(all_results, tradeoff_graph_file)
+    save_best_configs(all_results, best_configs_file)
     
     print("\nSearch complete!")
 

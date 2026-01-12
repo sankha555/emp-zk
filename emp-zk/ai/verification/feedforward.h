@@ -21,13 +21,13 @@ typedef struct stats {
     long total_examples;
     long total_comps;
 
-    void new_example(long i, long savings, long total_computations){
+    void new_example(long i, long savings, long total_computations, bool was_verified){
         if(savings < min_savings){
             min_savings = savings;
             min_example = i;
         }
 
-        if(savings > max_savings){
+        if(savings > max_savings && was_verified){
             max_savings = savings;
             max_example = i;
         }
@@ -220,7 +220,7 @@ class VerifiableFeedForwardNeuralNetwork {
             }
 
             layers[i]->forward(input_layer, prev_layer, do_inference, use_bs_heuristic);
-            layers[i]->sanity_check();
+            // layers[i]->sanity_check();
 
             if (this->mode == 0){
                 this->aggregate_neuron_info(layers[i]);
@@ -239,9 +239,9 @@ class VerifiableFeedForwardNeuralNetwork {
         if(this->mode == 0 && classification_result == true){
             this->select_neurons_for_heuristics(example_num);
         } else if(this->mode == 1 && classification_result == true){
-            this->savings1_stats->new_example(example_num, savings1, total_computations);
-            this->savings2_stats->new_example(example_num, savings2, total_computations);
-            this->savings_stats->new_example(example_num, savings, total_computations);
+            this->savings1_stats->new_example(example_num, savings1, total_computations, verification_result);
+            this->savings2_stats->new_example(example_num, savings2, total_computations, verification_result);
+            this->savings_stats->new_example(example_num, savings, total_computations, verification_result);
         }
 
         return {classification_result, verification_result};

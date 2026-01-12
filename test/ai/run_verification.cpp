@@ -145,11 +145,6 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   set<int> correctly_classified_examples;
   set<int> verified_examples;
 
-<<<<<<< HEAD
-  if(base_example != -1){
-    test_examples = vector<int>(num_examples);
-    std::iota(test_examples.begin(), test_examples.end(), base_example+1);
-=======
   auto start = clock_start();
   if(base_example == -1){
     num_examples = test_examples.size();
@@ -207,11 +202,10 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
 
       // model_field->describe(false, false);
     }
->>>>>>> pad
   }
   num_examples = test_examples.size();
 
-  auto start = clock_start();
+  start = clock_start();
   double total_time = 0;
 
   for(int j : test_examples){

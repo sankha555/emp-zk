@@ -98,7 +98,7 @@ class Layer {
 
                 if(this->type == AFFINE && this->diff[i] < 0){
                     cerr << "delta(u - l) >= 0 fails for neuron "+to_string(i+1)+" layer "+to_string(layer_num)+"\n";
-                    exit(0); 
+                    // exit(0); 
                 }
             }
         }

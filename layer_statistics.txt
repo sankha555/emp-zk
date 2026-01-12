@@ -1,0 +1,69 @@
+Layer-wise Percentile Statistics
+================================================================================
+
+Layer 2 (AFFINE[2]):
+  10th percentile: 0.663468
+  20th percentile: 0.683468
+  30th percentile: 0.699486
+  40th percentile: 0.713129
+  50th percentile: 0.725977
+  60th percentile: 0.738830
+  70th percentile: 0.753593
+  80th percentile: 0.770425
+  90th percentile: 0.795054
+
+Layer 4 (AFFINE[4]):
+  10th percentile: 1.109462
+  20th percentile: 1.286110
+  30th percentile: 1.413063
+  40th percentile: 1.515764
+  50th percentile: 1.606980
+  60th percentile: 1.710340
+  70th percentile: 1.820361
+  80th percentile: 1.962918
+  90th percentile: 2.193489
+
+Layer 6 (AFFINE[6]):
+  10th percentile: 1.012044
+  20th percentile: 1.122170
+  30th percentile: 1.206885
+  40th percentile: 1.283416
+  50th percentile: 1.359370
+  60th percentile: 1.434042
+  70th percentile: 1.516306
+  80th percentile: 1.620146
+  90th percentile: 1.776828
+
+Layer 8 (AFFINE[8]):
+  10th percentile: 1.609867
+  20th percentile: 1.820802
+  30th percentile: 1.991677
+  40th percentile: 2.144406
+  50th percentile: 2.300925
+  60th percentile: 2.461392
+  70th percentile: 2.668034
+  80th percentile: 2.955970
+  90th percentile: 3.524722
+
+Layer 10 (AFFINE[10]):
+  10th percentile: 1.227871
+  20th percentile: 1.450176
+  30th percentile: 1.646581
+  40th percentile: 1.844748
+  50th percentile: 2.065415
+  60th percentile: 2.276810
+  70th percentile: 2.539455
+  80th percentile: 2.882054
+  90th percentile: 3.504435
+
+Layer 12 (AFFINE[12]):
+  10th percentile: 1.897400
+  20th percentile: 2.432420
+  30th percentile: 2.784577
+  40th percentile: 3.215996
+  50th percentile: 3.688515
+  60th percentile: 4.253286
+  70th percentile: 4.847491
+  80th percentile: 6.026546
+  90th percentile: 7.679709
+

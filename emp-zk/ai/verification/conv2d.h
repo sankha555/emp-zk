@@ -150,10 +150,6 @@ class Conv2D : public Layer<T> {
             }
         }
 
-            this->describe(false, false);
-
-        }
-
         // this->describe(false, false);
     }
 
@@ -968,26 +964,6 @@ class Conv2D : public Layer<T> {
         delete[] prev_bounds;
     }
 
-
-
-    
-    void backsubstitute_lower_constraints(int num_inputs){
-        
-    }
-
-
-    void backsubstitute_upper_constraints(int num_inputs){
-        
-    }
-
-    void compute_lower_bounds_after_backsubstitution(Layer<T>* input_layer){
-        
-    }
-
-    void compute_upper_bounds_after_backsubstitution(Layer<T>* input_layer){
-        
-
-    }
 
 };
 

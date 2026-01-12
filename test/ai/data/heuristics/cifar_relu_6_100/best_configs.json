@@ -1,0 +1,65 @@
+{
+    "14-34": {
+        "verified": 14,
+        "avg_savings_pct": 34,
+        "max_savings_pct": 40,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "6": 4.472,
+            "8": -1,
+            "10": 11.016,
+            "12": -1,
+            "14": 1.96
+        },
+        "bs_waiver_thresholds2": {
+            "6": -1,
+            "8": -1,
+            "10": -1,
+            "12": -1,
+            "14": -1
+        }
+    },
+    "15-28": {
+        "verified": 15,
+        "avg_savings_pct": 28,
+        "max_savings_pct": 41,
+        "percentile": 0,
+        "phase": 2,
+        "bs_waiver_thresholds": {
+            "6": 3.589,
+            "8": -1,
+            "10": 11.016,
+            "12": -1,
+            "14": 2.874
+        },
+        "bs_waiver_thresholds2": {
+            "6": 3.729,
+            "8": -1,
+            "10": -1,
+            "12": -1,
+            "14": -1
+        }
+    },
+    "16-34": {
+        "verified": 16,
+        "avg_savings_pct": 34,
+        "max_savings_pct": 39,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "6": 4.472,
+            "8": -1,
+            "10": -1,
+            "12": 6.977,
+            "14": 1.484
+        },
+        "bs_waiver_thresholds2": {
+            "6": -1,
+            "8": -1,
+            "10": -1,
+            "12": -1,
+            "14": -1
+        }
+    }
+}

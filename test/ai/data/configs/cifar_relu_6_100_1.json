@@ -3,28 +3,20 @@
     "num_neurons": 100,
     "layers": [
         ["INPUT", 3072, 3072, -1],
-
         ["AFFINE", 3072, "num_neurons", -1],
         ["RELU", "num_neurons", "num_neurons", -1],
-        
         ["AFFINE", "num_neurons", "num_neurons", -1],
         ["RELU", "num_neurons", "num_neurons", -1],
-        
         ["AFFINE", "num_neurons", "num_neurons", -1],
         ["RELU", "num_neurons", "num_neurons", -1],
-
         ["AFFINE", "num_neurons", "num_neurons", -1],
         ["RELU", "num_neurons", "num_neurons", -1],
-
         ["AFFINE", "num_neurons", "num_neurons", -1],
         ["RELU", "num_neurons", "num_neurons", -1],
-
         ["AFFINE", "num_neurons", "num_neurons", -1],
         ["RELU", "num_neurons", "num_neurons", -1],
-
         ["AFFINE", "num_neurons", 10, -1],
         ["RELU", 10, 10, -1],
-        
         ["OUTPUT", 10, 10, -1]
     ],
     "epsilon": 0.0002,
@@ -32,19 +24,19 @@
     "input_max": 10,
     "do_float": 0,
     "FXPSCALE": 20,
-    "examples": [],
+    "examples": [4, 10, 19, 21, 35, 39, 51, 53, 67, 68, 78, 79, 81, 82, 89, 91, 93],
     "bs_waiver_thresholds": {
-        "6": 7.0,
-        "8": 7.0,
-        "10": 6.0,
-        "12": 6.0,
-        "14": 4.0
+        "6": 4.472,
+        "8": -1,
+        "10": 11.016,
+        "12": -1,
+        "14": 1.96
     },
     "bs_waiver_thresholds2": {
         "6": -1,
         "8": -1,
         "10": -1,
         "12": -1,
-        "14": -1
+        "14": 2.874
     }
 }

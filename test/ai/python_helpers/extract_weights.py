@@ -20,8 +20,10 @@ def get_onnx_parameters_as_arrays(onnx_model):
     return params
 
 
-model_path = "test/eran_models/mnist_relu_6_100.onnx"
-output_path = "test/ai/data/parameters/mnist_relu_6_100_1.txt"
+import sys
+model_name = sys.argv[1]
+model_path = f"test/eran_models/{model_name}.onnx"
+output_path = f"test/ai/data/parameters/{model_name}_1.txt"
 
 model, is_conv = read_onnx_net(model_path)
 params = get_onnx_parameters_as_arrays(model)

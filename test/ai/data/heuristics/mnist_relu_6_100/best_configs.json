@@ -1,0 +1,192 @@
+{
+    "80-26": {
+        "verified": 80,
+        "avg_savings_pct": 26,
+        "max_savings_pct": 51,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "6": 0.835,
+            "8": -1,
+            "10": 1.43,
+            "12": -1
+        },
+        "bs_waiver_thresholds2": {
+            "6": -1,
+            "8": -1,
+            "10": -1,
+            "12": -1
+        }
+    },
+    "82-22": {
+        "verified": 82,
+        "avg_savings_pct": 22,
+        "max_savings_pct": 39,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "6": -1,
+            "8": 0.77,
+            "10": 1.43,
+            "12": 1.765
+        },
+        "bs_waiver_thresholds2": {
+            "6": -1,
+            "8": -1,
+            "10": -1,
+            "12": -1
+        }
+    },
+    "83-17": {
+        "verified": 83,
+        "avg_savings_pct": 17,
+        "max_savings_pct": 46,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "6": 0.835,
+            "8": -1,
+            "10": 1.061,
+            "12": -1
+        },
+        "bs_waiver_thresholds2": {
+            "6": -1,
+            "8": -1,
+            "10": -1,
+            "12": -1
+        }
+    },
+    "84-23": {
+        "verified": 84,
+        "avg_savings_pct": 23,
+        "max_savings_pct": 28,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "6": -1,
+            "8": -1,
+            "10": 1.43,
+            "12": -1
+        },
+        "bs_waiver_thresholds2": {
+            "6": -1,
+            "8": -1,
+            "10": -1,
+            "12": -1
+        }
+    },
+    "86-1": {
+        "verified": 86,
+        "avg_savings_pct": 1,
+        "max_savings_pct": 3,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "6": -1,
+            "8": -1,
+            "10": -1,
+            "12": 1.765
+        },
+        "bs_waiver_thresholds2": {
+            "6": -1,
+            "8": -1,
+            "10": -1,
+            "12": -1
+        }
+    },
+    "87-18": {
+        "verified": 87,
+        "avg_savings_pct": 18,
+        "max_savings_pct": 28,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "6": -1,
+            "8": -1,
+            "10": 1.061,
+            "12": -1
+        },
+        "bs_waiver_thresholds2": {
+            "6": -1,
+            "8": -1,
+            "10": -1,
+            "12": -1
+        }
+    },
+    "88-11": {
+        "verified": 88,
+        "avg_savings_pct": 11,
+        "max_savings_pct": 28,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "6": -1,
+            "8": 0.77,
+            "10": 1.061,
+            "12": 1.765
+        },
+        "bs_waiver_thresholds2": {
+            "6": -1,
+            "8": -1,
+            "10": -1,
+            "12": -1
+        }
+    },
+    "89-10": {
+        "verified": 89,
+        "avg_savings_pct": 10,
+        "max_savings_pct": 28,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "6": -1,
+            "8": 0.77,
+            "10": 1.061,
+            "12": -1
+        },
+        "bs_waiver_thresholds2": {
+            "6": -1,
+            "8": -1,
+            "10": -1,
+            "12": -1
+        }
+    },
+    "90-10": {
+        "verified": 90,
+        "avg_savings_pct": 10,
+        "max_savings_pct": 28,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "6": -1,
+            "8": -1,
+            "10": 0.813,
+            "12": -1
+        },
+        "bs_waiver_thresholds2": {
+            "6": -1,
+            "8": -1,
+            "10": -1,
+            "12": -1
+        }
+    },
+    "91-7": {
+        "verified": 91,
+        "avg_savings_pct": 7,
+        "max_savings_pct": 24,
+        "percentile": 0,
+        "phase": 1,
+        "bs_waiver_thresholds": {
+            "6": -1,
+            "8": 0.77,
+            "10": -1,
+            "12": -1
+        },
+        "bs_waiver_thresholds2": {
+            "6": -1,
+            "8": -1,
+            "10": -1,
+            "12": -1
+        }
+    }
+}
