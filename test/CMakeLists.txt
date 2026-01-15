@@ -59,6 +59,7 @@ add_test_case_with_run(sankha fix_point)
 # add_test_case_with_run(ai test_primitive)
 # add_test_case_with_run(ai test_divide)
 add_test_case_with_run(ai test_affine)
+add_test_case_with_run(ai test_activations)
 # add_test_case_with_run(ai test_single_layer_forward)
 # add_test_case_with_run(ai test_file_ops)
 

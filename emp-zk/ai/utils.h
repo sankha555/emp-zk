@@ -35,7 +35,7 @@ uint64_t MINUS_ONE = (PR - 1);
 const bool SECURE = 1; // 0 = cleartext, 1 = zk
 bool ONLY_INFERENCE = 0;
 
-enum LAYER_TYPE{INPUT, AFFINE, CONV2D, RELU, OUTPUT};
+enum LAYER_TYPE{INPUT, AFFINE, CONV2D, RELU, SIGMOID, TANH, OUTPUT};
 enum TEST_MODE{CLTFLOAT, CLTFXP, SECUREMODE};
 
 enum DATASETS{MNIST, CIFAR10, TOY, ADULT, CREDIT, GERMAN};
@@ -70,6 +70,10 @@ std::string get_layer_type(LAYER_TYPE type){
             return "CONV2D";
         case RELU:
             return "RELU";
+        case SIGMOID:
+            return "SIGMOID";
+        case TANH:
+            return "TANH";
         case OUTPUT:
             return "OUTPUT";
     }

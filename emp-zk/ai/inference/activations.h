@@ -47,6 +47,21 @@ void relu_layer(int n, IntFp* input, IntFp* output){
 }
 
 
+void sigmoid_layer(int n, float* input, float* output){
+    // n neurons in sigmoid layer
+    for(int i = 0; i < n; i++){
+        output[i] = 1/(1 + std::exp(-input[i]));
+    }
+}
+
+void sigmoid_derivative_layer(int n, float* input, float* output){
+    sigmoid_layer(n, input, output);
+    for(int i = 0; i < n; i++){
+        output[i] = output[i] * (1 - output[i]);
+    }
+}
+
+
 void abstract_relu(int n, float* input, float* output){
     
 }

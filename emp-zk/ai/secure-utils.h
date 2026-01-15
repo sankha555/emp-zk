@@ -193,4 +193,126 @@ std::pair<IntFp*, IntFp*> relu_bundle2(int sz, IntFp* prev_lbs, IntFp* prev_ubs,
     return std::make_pair(lc_coeffs, uc_coeffs);
 }
 
+
+std::pair<IntFp*, IntFp*> sigmoid_bundle(int sz, IntFp* current_lbs, IntFp* current_ubs, IntFp* prev_lbs, IntFp* prev_ubs, IntFp* sigmoid_prime_lower, IntFp* sigmoid_prime_upper, int party){
+
+    IntFp* prev_bound_diff = new IntFp[sz];
+    IntFp* bound_diff = new IntFp[sz];
+
+    for(int i = 0; i < sz; i++){
+        prev_bound_diff[i] = prev_ubs[i] + prev_lbs[i].negate();
+        bound_diff[i] = current_ubs[i] + current_lbs[i].negate();
+    }
+
+    IntFp* lambdas = new IntFp[sz];
+    IntFp* lambda_primes = new IntFp[sz];
+
+    uint64_t* clt_lambdas = new uint64_t[sz];
+
+    if(party == ALICE){
+        // cleartext coeff computation
+        for(int i = 0; i < sz; i++){
+            uint64_t delta_i        = HIGH64(prev_bound_diff[i].value);
+            uint64_t delta_sigma_i  = HIGH64(bound_diff[i].value);                   
+
+            clt_lambdas[i] = divide<uint64_t>(delta_sigma_i, delta_i);      
+        }
+    }
+
+    for(int i = 0; i < sz; i++){
+        lambdas[i] = IntFp(clt_lambdas[i], ALICE);
+        inner_product_bundle(1, bound_diff + i, lambdas + i, party);
+    }
+
+    IntFp* prev_bounds_same = new IntFp[sz];
+    ZKcmpPositive(party, prev_bound_diff, ZERO_COMP_CONSTANT, prev_bounds_same, sz);
+
+    IntFp* sigmoid_u_greater_than_sigmoid_l = new IntFp[sz];
+    ZKcmpPositive(party, bound_diff, ZERO_COMP_CONSTANT, sigmoid_u_greater_than_sigmoid_l, sz);
+    for(int i = 0; i < sz; i++){
+        lambda_primes[i] = sigmoid_u_greater_than_sigmoid_l[i] * sigmoid_prime_lower[i] +
+                            (FIELD_ONE + sigmoid_u_greater_than_sigmoid_l[i].negate()) * sigmoid_prime_upper[i];
+    }
+    
+    IntFp* prev_lower_comps = new IntFp[sz];
+    ZKcmpPositive(party, prev_lbs, ZERO_COMP_CONSTANT, prev_lower_comps, sz);
+    
+    IntFp* prev_upper_comps = new IntFp[sz];
+    ZKcmpPositive(party, prev_ubs, ZERO_COMP_CONSTANT, prev_upper_comps, sz);
+
+
+    IntFp* lc_coeffs = new IntFp[2 * sz];
+    for(int i = 0; i < sz; i++){
+        lc_coeffs[i] = //(FIELD_ONE + prev_bounds_same[i].negate()) * FIELD_ZERO  +    // u_j - l_j > 0 (!= 0)
+                        FIELD_ZERO + 
+                        prev_bounds_same[i] * (
+                            prev_lower_comps[i] * lambdas[i] +                      // l_j > 0
+                            (FIELD_ONE + prev_lower_comps[i].negate()) * lambda_primes[i]           
+                        );
+
+        lc_coeffs[i + sz] = (FIELD_ONE + prev_bounds_same[i].negate()) * (current_lbs[i] * FIELD_SCALED_ONE)     // u_j - l_j > 0 (!= 0)
+                            + prev_bounds_same[i] * (
+                                prev_lower_comps[i] * (current_lbs[i] * FIELD_SCALED_ONE +  lambdas[i] * prev_lbs[i].negate()) +                    // l_j > 0
+                                (FIELD_ONE + prev_lower_comps[i].negate()) * (current_lbs[i] * FIELD_SCALED_ONE +  lambda_primes[i] * prev_lbs[i].negate())          
+                            );
+
+        if(i == 485){
+            cerr << format_EMP_IntFp(prev_lbs[i], 1) << " " << format_EMP_IntFp(prev_ubs[i], 1) << "\n";
+            cerr << format_EMP_IntFp(current_lbs[i], 1) << " " << format_EMP_IntFp(current_ubs[i], 1) << "\n";
+            cerr << format_EMP_IntFp(lc_coeffs[i], 1) << " " << format_EMP_IntFp(lc_coeffs[i + sz], 1) << "\n";
+        }
+    }
+    ZKgeneralTruncAny(party, lc_coeffs + sz, lc_coeffs + sz, sz, FXPSCALE);
+
+
+    IntFp* uc_coeffs = new IntFp[2 * sz];
+    for(int i = 0; i < sz; i++){
+        uc_coeffs[i] = //(FIELD_ONE + prev_bounds_same[i].negate()) * FIELD_ZERO +      // u_j - l_j > 0 (!= 0)
+                        FIELD_ZERO +
+                        prev_bounds_same[i] * (
+                            (FIELD_ONE + prev_upper_comps[i].negate()) * lambdas[i] +                      // l_j > 0
+                            prev_upper_comps[i] * lambda_primes[i]           
+                       );
+
+        uc_coeffs[i + sz] = (FIELD_ONE + prev_bounds_same[i].negate()) * (current_ubs[i] * FIELD_SCALED_ONE)     // u_j - l_j > 0 (!= 0)
+                            + prev_bounds_same[i] * (
+                                (FIELD_ONE + prev_upper_comps[i].negate()) * (current_ubs[i] * FIELD_SCALED_ONE +  lambdas[i] * prev_ubs[i].negate()) +                    // l_j > 0
+                                prev_upper_comps[i] * (current_ubs[i] * FIELD_SCALED_ONE +  lambda_primes[i] * prev_ubs[i].negate())          
+                            );
+    }
+    ZKgeneralTruncAny(party, uc_coeffs + sz, uc_coeffs + sz, sz, FXPSCALE);
+
+    return {lc_coeffs, uc_coeffs};
+}
+
+
+void ZKSigmoidAndDerivative(int party, IntFp* x, IntFp* y, IntFp* z, int dim){
+    ZKSigmoid(party, x, y, dim, FXPSCALE);
+
+    // sigmoid'(x) = sigmoid(x) * (1 - sigmoid(x))
+    for(int i = 0; i < dim; i++){
+        z[i] = y[i] * (FIELD_SCALED_ONE + y[i].negate()); 
+    }
+
+    ZKgeneralTruncAny(party, z, z, dim, FXPSCALE);
+}
+
+void ZKTanhAndDerivative(int party, IntFp* x, IntFp* y, IntFp* z, int dim){
+    for(int i = 0; i < dim; i++){
+        y[i] = x[i] + x[i];         // x --> 2x
+    }
+
+    // sigmoid(2x) and sigmoid'(2x)
+    ZKSigmoidAndDerivative(party, y, y, z, dim);
+
+    for(int i = 0; i < dim; i++){
+        y[i] = y[i] + y[i] + FIELD_SCALED_ONE.negate();   // tanh(x) = 2 sigmoid(2x) - 1
+
+        // derivative
+        // tanh'(x) = 4sigmoid(2x) * (1 - sigmoid(2x)) = 4sigmoid'(2x)
+        z[i] = z[i] + z[i] + z[i] + z[i];
+    }
+}
+
+
 #endif

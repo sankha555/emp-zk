@@ -21,6 +21,6 @@
     "input_min": -10,
     "input_max": 10,
     "do_float": 2,
-    "FXPSCALE": 24,
+    "FXPSCALE": 20,
     "examples": [64]
 }

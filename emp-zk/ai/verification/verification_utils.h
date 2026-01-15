@@ -95,6 +95,17 @@ VerifiableFeedForwardNeuralNetwork<T>* create_model(int num_layers, int* layer_s
 
                 break;
 
+            case LAYER_TYPE::SIGMOID:
+                layers[i] = new Sigmoid<T>(
+                    layer_specs[specs + INPUT_SIZE_INDEX],
+                    layer_specs[specs + OUTPUT_SIZE_INDEX],
+                    layer_specs[specs + MAX_COEFFS_INDEX],
+                    party
+                );
+                specs += 4;
+
+                break;
+
             case LAYER_TYPE::OUTPUT:
                 layers[i] = new Output<T>(
                     layer_specs[specs + INPUT_SIZE_INDEX],
@@ -119,6 +130,8 @@ LAYER_TYPE stringToLayerType(const std::string& type) {
     if (type == "INPUT") return INPUT;
     if (type == "AFFINE") return AFFINE;
     if (type == "RELU") return RELU;
+    if (type == "SIGMOID") return SIGMOID;
+    if (type == "TANH") return TANH;
     if (type == "OUTPUT") return OUTPUT;
     if (type == "CONV2D") return CONV2D;
     throw std::runtime_error("Unknown layer type: " + type);

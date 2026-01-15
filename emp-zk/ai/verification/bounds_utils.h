@@ -256,7 +256,7 @@ void update_lower_bounds_using_prev_layers(Layer<T>* current_layer, Layer<T>* pr
         // update lower constraints
         if (prev_layer->type == INPUT){
             ;
-        } else if(prev_layer->type == RELU){
+        } else if(prev_layer->type == RELU || prev_layer->type == SIGMOID || prev_layer->type == TANH){
             update_lower_constraints_with_activation(current_layer, prev_layer);
         } else if(prev_layer->type == AFFINE) {
             update_lower_constraints_with_affine(current_layer, prev_layer);        
@@ -608,7 +608,7 @@ void update_upper_bounds_using_prev_layers(Layer<T>* current_layer, Layer<T>* pr
         // update upper constraints
         if (prev_layer->type == INPUT){
             ;
-        } else if(prev_layer->type == RELU){
+        } else if(prev_layer->type == RELU || prev_layer->type == SIGMOID || prev_layer->type == TANH){
             update_upper_constraints_with_activation(current_layer, prev_layer);
         } else if(prev_layer->type == AFFINE) {
             update_upper_constraints_with_affine(current_layer, prev_layer);        
@@ -989,7 +989,7 @@ void cleartext_update_lower_bounds_using_prev_layers(Layer<T>* current_layer, La
     // update lower constraints
     if (prev_layer->type == INPUT){
         ;
-    } else if(prev_layer->type == RELU){
+    } else if(prev_layer->type == RELU || prev_layer->type == SIGMOID || prev_layer->type == TANH){
         cleartext_update_lower_constraints_with_activation(current_layer, prev_layer);
     } else if(prev_layer->type == AFFINE) {
         cleartext_update_lower_constraints_with_affine(current_layer, prev_layer);        
@@ -1243,7 +1243,7 @@ void cleartext_update_upper_bounds_using_prev_layers(Layer<T>* current_layer, La
     // update upper constraints
     if (prev_layer->type == INPUT){
         ;
-    } else if(prev_layer->type == RELU){
+    } else if(prev_layer->type == RELU || prev_layer->type == SIGMOID || prev_layer->type == TANH){
         cleartext_update_upper_constraints_with_activation(current_layer, prev_layer);
     } else if(prev_layer->type == AFFINE) {
         cleartext_update_upper_constraints_with_affine(current_layer, prev_layer);        

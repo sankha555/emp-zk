@@ -1,0 +1,555 @@
+#ifndef __SIGMOID_H__
+#define __SIGMOID_H__
+
+#pragma once
+
+#include "emp-tool/emp-tool.h"
+#include "emp-zk/emp-zk.h"
+#include "emp-zk/ai/verification/verification.h"
+#include "emp-zk/ai/utils.h"
+
+#include <iostream>
+
+using namespace emp;
+using namespace std;
+
+template <typename T>
+class Sigmoid : public Layer<T> {
+    public:
+
+    bool* is_exact;
+
+    T* sigmoid_prime_lower;
+    T* sigmoid_prime_upper;
+    
+    Sigmoid(int input_size, int output_size, int max_coeffs = 2, int party = PUBLIC) : Layer<T>(input_size, output_size, max_coeffs, party){
+        if(input_size != output_size){
+            error("Sigmoid layer should have same input size and output size!\n");
+        }
+
+        if(max_coeffs == -1){
+            max_coeffs = 2;
+        }
+        this->max_coeffs = max_coeffs;
+
+        this->input = new T[input_size]; 
+        this->output = new T[output_size];
+        this->type = SIGMOID;
+
+        this->lower_bounds = new T[output_size];
+        this->upper_bounds = new T[output_size];
+        
+        this->lower_constraints = new T[output_size*this->max_coeffs];
+        this->upper_constraints = new T[output_size*this->max_coeffs];
+
+        this->is_exact = new bool[output_size]{false};
+    }
+
+    void forward(Layer<T>* input_layer, Layer<T>* prev_layer, bool do_inference = true){
+        this->prev_layer = prev_layer;
+
+        for(int i = 0; i < this->input_size; i++){
+            this->input[i] = T(prev_layer->output[i]);
+        }
+
+        // this->describe(false, false);
+
+        if(do_inference){
+            if constexpr (std::is_same<IntFp, T>::value && SECURE){
+                ZKSigmoid(this->party, this->input, this->output, this->output_size, FXPSCALE);
+            } else {
+                sigmoid_layer(this->input_size, this->input, this->output);
+            }
+        }
+
+        if(!ONLY_INFERENCE){
+            auto start = clock_start();
+
+            // this order of bounds followed by constraints is imp here!!!
+            compute_lower_bounds();
+            compute_upper_bounds();
+            
+            compute_lower_constraints();
+            compute_upper_constraints();
+
+            double tt = time_from(start);
+            this->time_for_fp += tt;
+        }
+    
+
+        this->describe(true, true);
+    }
+
+    void compute_lower_bounds(){
+        if constexpr (std::is_same<IntFp, T>::value && SECURE){
+
+            this->sigmoid_prime_lower = new T[this->output_size];
+
+            ZKSigmoidAndDerivative(this->party, this->prev_layer->lower_bounds, this->lower_bounds, this->sigmoid_prime_lower, this->output_size);
+            
+        } else {
+            cleartext_compute_lower_bounds();
+        }
+    }
+
+    void compute_upper_bounds(){
+        if constexpr (std::is_same<IntFp, T>::value && SECURE){
+
+            this->sigmoid_prime_upper = new T[this->output_size];
+
+            ZKSigmoidAndDerivative(this->party, this->prev_layer->upper_bounds, this->upper_bounds, this->sigmoid_prime_upper, this->output_size);
+
+        } else {
+            cleartext_compute_upper_bounds();
+        }
+    }
+
+    void compute_lower_constraints(){
+        if constexpr (std::is_same<IntFp, T>::value && SECURE){
+            auto constraints = sigmoid_bundle(
+                this->output_size, 
+                this->lower_bounds,
+                this->upper_bounds,
+                this->prev_layer->lower_bounds, 
+                this->prev_layer->upper_bounds, 
+                this->sigmoid_prime_lower,
+                this->sigmoid_prime_upper,
+                this->party
+            );
+
+            IntFp* lc = constraints.first;
+            IntFp* uc = constraints.second;
+
+            // rearrangement
+            for(int i = 0; i < this->output_size; i++){
+                this->lower_constraints[2*i + 0] = lc[i];
+                this->lower_constraints[2*i + 1] = lc[i + this->output_size];
+
+                this->upper_constraints[2*i + 0] = uc[i];
+                this->upper_constraints[2*i + 1] = uc[i + this->output_size];
+            }
+
+
+        } else {
+            cleartext_compute_lower_constraints();
+            cleartext_compute_upper_constraints();
+        }
+    }
+
+    void compute_upper_constraints(){
+        ;
+    }
+
+    void backsubstitute(Layer<T>* input_layer){
+        ;
+    }
+
+
+    void cleartext_compute_lower_bounds(){
+        sigmoid_layer(this->output_size, this->prev_layer->lower_bounds, this->lower_bounds);
+    }
+
+    void cleartext_compute_upper_bounds(){
+        sigmoid_layer(this->output_size, this->prev_layer->upper_bounds, this->upper_bounds);
+    }
+
+
+    void cleartext_compute_lower_constraints(){
+        if constexpr (std::is_same<float, T>::value){
+            float* sigmoid_lower_prime = new float[this->output_size];
+            sigmoid_derivative_layer(this->output_size, this->prev_layer->lower_bounds, sigmoid_lower_prime);
+
+            float* sigmoid_upper_prime = new float[this->output_size];
+            sigmoid_derivative_layer(this->output_size, this->prev_layer->upper_bounds, sigmoid_upper_prime);
+
+            for(int i = 0; i < this->output_size; i++){
+                T prev_lb = this->prev_layer->lower_bounds[i];
+                T prev_ub = this->prev_layer->upper_bounds[i];
+
+                T lambda = (this->upper_bounds[i] - this->lower_bounds[i])/(prev_ub - prev_lb);
+                T lambda_prime = std::min(sigmoid_lower_prime[i], sigmoid_upper_prime[i]);
+
+                // if(this->lower_bounds[i] + lambda * (prev_ub - prev_lb) >= this->upper_bounds[i]){
+                //     // boxify
+                //     this->lower_constraints[i*2 + 0] = constant<T>(0);
+                //     this->lower_constraints[i*2 + 1] = constant<T>(this->lower_bounds[i]);
+                // } else 
+
+                if(prev_lb == prev_ub){
+                    this->lower_constraints[i*2 + 0] = constant<T>(0);
+                    this->lower_constraints[i*2 + 1] = constant<T>(this->lower_bounds[i]);      // l_i = \sigma(l_j) throughout
+
+                } else if(prev_lb > 0) {
+                    // l > 0
+                    this->lower_constraints[i*2 + 0] = constant<T>(lambda);
+                    this->lower_constraints[i*2 + 1] = this->lower_bounds[i] + (lambda) * (-prev_lb);
+
+                } else {
+                    // u < 0
+                    this->lower_constraints[i*2 + 0] = constant<T>(lambda_prime);
+                    this->lower_constraints[i*2 + 1] = this->lower_bounds[i] + lambda_prime * (-prev_lb);
+
+                }
+            }
+        }
+    }
+       
+    void cleartext_compute_upper_constraints(){
+        if constexpr (std::is_same<float, T>::value){
+            float* sigmoid_lower_prime = new float[this->output_size];
+            sigmoid_derivative_layer(this->output_size, this->prev_layer->lower_bounds, sigmoid_lower_prime);
+
+            float* sigmoid_upper_prime = new float[this->output_size];
+            sigmoid_derivative_layer(this->output_size, this->prev_layer->upper_bounds, sigmoid_upper_prime);
+
+            for(int i = 0; i < this->output_size; i++){
+                T prev_lb = this->prev_layer->lower_bounds[i];
+                T prev_ub = this->prev_layer->upper_bounds[i];
+
+                T lambda = (this->upper_bounds[i] - this->lower_bounds[i])/(prev_ub - prev_lb);
+
+                // if(this->lower_bounds[i] + lambda * (prev_ub - prev_lb) >= this->upper_bounds[i]){
+                //     // boxify
+                //     this->upper_constraints[i*2 + 0] = constant<T>(0);
+                //     this->upper_constraints[i*2 + 1] = constant<T>(this->upper_bounds[i]);
+                // } else 
+
+                if(prev_lb == prev_ub){
+                    this->upper_constraints[i*2 + 0] = constant<T>(0);
+                    this->upper_constraints[i*2 + 1] = constant<T>(this->upper_bounds[i]);      // l_i = \sigma(l_j) throughout
+                } else if(prev_ub <= 0) {
+                    // u <= 0
+                    this->upper_constraints[i*2 + 0] = constant<T>(lambda);
+                    this->upper_constraints[i*2 + 1] = this->upper_bounds[i] + (lambda) * (-prev_ub);
+                } else {
+                    T lambda_prime = std::min(sigmoid_lower_prime[i], sigmoid_upper_prime[i]);
+                    this->upper_constraints[i*2 + 0] = constant<T>(lambda_prime);
+                    this->upper_constraints[i*2 + 1] = this->upper_bounds[i] + lambda_prime * (-prev_ub);
+                }
+            }
+        }
+    }
+
+
+
+
+    void reset(){
+        delete[] this->input;
+        delete[] this->output;
+
+        delete[] this->lower_bounds;
+        delete[] this->upper_bounds;
+        delete[] this->lower_constraints;
+        delete[] this->upper_constraints;
+
+        this->max_coeffs = 2;
+
+        this->input = new T[this->input_size];  
+        this->output = new T[this->output_size];
+
+        this->lower_bounds = new T[this->output_size];
+        this->upper_bounds = new T[this->output_size];
+        
+        this->lower_constraints = new T[this->output_size*this->max_coeffs];
+        this->upper_constraints = new T[this->output_size*this->max_coeffs];
+
+        this->is_backsubstituted = false;
+        this->is_exact = new bool[this->output_size]{false};
+    }
+
+
+    void describe(bool print_parameters = false, bool print_expressions = false){
+        cout << "Type: " << get_layer_type(this->type) << "\n";
+        
+        const bool prev_conv = this->prev_layer->type == LAYER_TYPE::CONV2D;
+        if (prev_conv){
+
+            std::cout << std::fixed << std::setprecision(4);
+
+            cout << "Inputs:\n";
+            int out_c = ((Conv2D<T>*) this->prev_layer)->out_channels;
+            int out_h = ((Conv2D<T>*) this->prev_layer)->out_h;
+            int out_w = ((Conv2D<T>*) this->prev_layer)->out_w;
+
+            for(int k = 0; k < out_c; k++){
+                cout << "\tChannel " << k << ":\n";
+                for(int i = 0; i < out_h; i++){
+                    cout << "\tRow " << i << ": [";
+                    for(int j = 0; j < out_w-1; j++){
+                        T el = this->output[
+                            k * out_h * out_w +
+                            i * out_w +
+                            j
+                        ];
+                        
+                        if constexpr (std::is_same<T, IntFp>::value){
+                            cout << format_EMP_IntFp(el, 1);
+                        } else if constexpr (std::is_same<T, float>::value) {
+                            cout << el;
+                        }
+                        
+                        cout << (j == out_w-1 ? "" : ", ");
+                    } 
+                    cout << "]\n";
+                }
+                cout << "\n";
+            }
+
+            
+
+            cout << "Outputs:\n";
+            for(int k = 0; k < out_c; k++){
+                cout << "\tChannel " << k << ":\n";
+                for(int i = 0; i < out_h; i++){
+                    cout << "\tRow " << i << ": [";
+                    for(int j = 0; j < out_w; j++){
+                        T el = this->output[
+                            k * out_h * out_w +
+                            i * out_w +
+                            j
+                        ];
+                        
+                        if constexpr (std::is_same<T, IntFp>::value){
+                            cout << format_EMP_IntFp(el, 1);
+                        } else if constexpr (std::is_same<T, float>::value) {
+                            cout << el;
+                        }
+                        
+                        cout << (j == out_w-1 ? "" : ", ");
+                    } 
+                    cout << "]\n";
+                }
+                cout << "\n";
+            }
+
+            std::cout.unsetf(std::ios::fixed);
+        
+
+        } else {
+            cout << "Inputs:\n";
+            for(int i = 0; i < this->input_size; i++){
+                if constexpr (std::is_same<T, IntFp>::value){
+                    cout << format_EMP_IntFp(this->input[i], 1) << " ";
+                } else if constexpr (std::is_same<T, float>::value) {
+                    cout << this->input[i] << " ";
+                }
+            }
+            cout << "\n";
+            
+            cout << "Outputs:\n";
+            for(int i = 0; i < this->output_size; i++){
+                if constexpr (std::is_same<T, IntFp>::value){
+                    cout << format_EMP_IntFp(this->output[i], 1) << " ";
+                } else if constexpr (std::is_same<T, float>::value) {
+                    cout << this->output[i] << " ";
+                }
+            }
+            cout << "\n";
+        }
+
+        if(!ONLY_INFERENCE){
+            cout << "Lower Bounds:\n";
+            for(int i = 0; i < this->output_size; i++){
+                if constexpr (std::is_same<T, IntFp>::value){
+                    cout << format_EMP_IntFp(this->lower_bounds[i], 1) << " ";
+                } else if constexpr (std::is_same<T, float>::value) {
+                    cout << this->lower_bounds[i] << " ";
+                }
+            }
+            cout << "\n";
+            
+            cout << "Upper Bounds:\n";
+            for(int i = 0; i < this->output_size; i++){
+                if constexpr (std::is_same<T, IntFp>::value){
+                    cout << format_EMP_IntFp(this->upper_bounds[i], 1) << " ";
+                } else if constexpr (std::is_same<T, float>::value) {
+                    cout << this->upper_bounds[i] << " ";
+                }
+            }
+        }
+        
+
+        if (print_expressions && !ONLY_INFERENCE){
+            cout << "\n";
+
+            cout << "Lower Expression:\n";
+            for(int i = 0; i < this->output_size; i++){
+                cout << "N" << i+1 << ": ";
+                for(int k = 0; k < this->max_coeffs; k++){
+                    if constexpr (std::is_same<T, IntFp>::value){
+                        cout << format_EMP_IntFp(this->lower_constraints[i*this->max_coeffs + k], 1) << " ";
+                    } else if constexpr (std::is_same<T, float>::value) {
+                        cout << this->lower_constraints[i*this->max_coeffs + k] << " ";
+                    }
+                }
+                
+                cout << "\n";
+            }
+            cout << "\n";
+
+            cout << "Upper Expression:\n";
+            for(int i = 0; i < this->output_size; i++){
+                cout << "N" << i+1 << ": ";
+                for(int k = 0; k < this->max_coeffs; k++){
+                    if constexpr (std::is_same<T, IntFp>::value){
+                        cout << format_EMP_IntFp(this->upper_constraints[i*this->max_coeffs + k], 1) << " ";
+                    } else if constexpr (std::is_same<T, float>::value) {
+                        cout << this->upper_constraints[i*this->max_coeffs + k] << " ";
+                    }
+                }
+                
+                cout << "\n";
+            }
+        }
+
+        cout << "\n\n";
+    }
+
+    
+    void backsubstitute_lower_constraints(int num_inputs){
+        T* new_lower_constraints = new T[this->output_size*this->max_coeffs];
+
+        T* prev_lc = this->prev_layer->lower_constraints;
+        T* prev_uc = this->prev_layer->upper_constraints;
+
+        for(int i = 0; i < this->output_size; i++){ // for each neuron in the layer
+            for(int k = 0; k < num_inputs; k++){
+                if(greater_eq_zero<T>((T)this->lower_constraints[2*i + 0], false)){
+                    // replace by lower coefficient
+                    new_lower_constraints[i*this->max_coeffs + k] = 
+                                                    this->lower_constraints[2*i + 0]
+                                                    *prev_lc[i*(num_inputs+1) + k];
+                } else {
+                    // replace by upper coefficient
+                    new_lower_constraints[i*this->max_coeffs + k] = 
+                                                    this->lower_constraints[2*i + 0]
+                                                    *prev_uc[i*(num_inputs+1) + k];
+                }
+            }
+
+
+            if(greater_eq_zero<T>((T)this->lower_constraints[2*i + 0], false)){
+                // replace by lower coefficient
+                new_lower_constraints[(i+1)*this->max_coeffs - 1] = 
+                                                this->lower_constraints[2*i + 0]
+                                                *prev_lc[(i+1)*(num_inputs+1) - 1];
+            } else {
+                // replace by upper coefficient
+                new_lower_constraints[(i+1)*this->max_coeffs - 1] = 
+                                                this->lower_constraints[2*i + 0]
+                                                *prev_uc[(i+1)*(num_inputs+1) - 1];
+            }
+
+
+            if(std::is_same<IntFp, T>::value){
+                normalize(this->max_coeffs, (IntFp*) (new_lower_constraints + i*this->max_coeffs), (IntFp*) (new_lower_constraints + i*this->max_coeffs));
+            }
+
+            new_lower_constraints[(i + 1) * this->max_coeffs - 1] = new_lower_constraints[(i + 1) * this->max_coeffs - 1] + this->lower_constraints[2*i + 1];
+        }
+
+        // delete[] this->lower_constraints;
+        this->lower_constraints = new_lower_constraints;
+    }
+
+    void backsubstitute_upper_constraints(int num_inputs){
+        T* new_upper_constraints = new T[this->output_size*this->max_coeffs];
+
+        T* prev_lc = this->prev_layer->lower_constraints;
+        T* prev_uc = this->prev_layer->upper_constraints;
+
+        for(int i = 0; i < this->output_size; i++){ // for each neuron in the layer
+            for(int k = 0; k < num_inputs; k++){
+                if(greater_eq_zero<T>((T)this->upper_constraints[2*i + 0], false)){
+                    // replace by upper coefficient
+                    new_upper_constraints[i*this->max_coeffs + k] = 
+                                                    this->upper_constraints[2*i + 0]
+                                                    *prev_uc[i*(num_inputs+1) + k];
+                } else {
+                    // replace by lower coefficient
+                    new_upper_constraints[i*this->max_coeffs + k] = 
+                                                    this->upper_constraints[2*i + 0]
+                                                    *prev_lc[i*(num_inputs+1) + k];
+                }
+            }
+
+            if(greater_eq_zero<T>((T)this->upper_constraints[2*i + 0], false)){
+                // replace by upper coefficient
+                new_upper_constraints[(i+1)*this->max_coeffs - 1] = 
+                                                this->upper_constraints[2*i + 0]
+                                                *prev_uc[(i+1)*(num_inputs+1) - 1];
+            } else {
+                // replace by lower coefficient
+                new_upper_constraints[(i+1)*this->max_coeffs - 1] = 
+                                                this->upper_constraints[2*i + 0]
+                                                *prev_lc[(i+1)*(num_inputs+1) - 1];
+            }
+
+
+            if(std::is_same<IntFp, T>::value){
+                normalize(this->max_coeffs, (IntFp*) (new_upper_constraints + i*this->max_coeffs), (IntFp*) (new_upper_constraints + i*this->max_coeffs));
+            }
+
+            new_upper_constraints[(i + 1) * this->max_coeffs - 1] = new_upper_constraints[(i + 1) * this->max_coeffs - 1] + this->upper_constraints[2*i + 1];
+        }
+
+        // delete[] this->upper_constraints;
+        this->upper_constraints = new_upper_constraints;
+    }
+
+
+    void compute_lower_bounds_after_backsubstitution(Layer<T>* input_layer){
+        T* input_lb = input_layer->lower_bounds;
+        T* input_ub = input_layer->upper_bounds;
+        int num_inputs = input_layer->input_size;
+
+        for(int i = 0; i < this->output_size; i++){
+            this->lower_bounds[i] = constant<T>(0);
+            for(int k = 0; k < num_inputs; k++){
+                if(greater_eq_zero(this->lower_constraints[i*this->max_coeffs + k], false)){
+                    this->lower_bounds[i] = this->lower_bounds[i] + this->lower_constraints[i*this->max_coeffs + k]*input_lb[k];
+                } else {
+                    this->lower_bounds[i] = this->lower_bounds[i] + this->lower_constraints[i*this->max_coeffs + k]*input_ub[k];
+                }
+            }
+        }
+
+        if constexpr (std::is_same<T, IntFp>::value){
+            normalize(this->output_size, (IntFp*) this->lower_bounds, (IntFp*) this->lower_bounds);
+        }
+
+        for(int i = 0; i < this->output_size; i++){
+            this->lower_bounds[i] = this->lower_bounds[i] + this->lower_constraints[(i+1)*this->max_coeffs - 1];
+        }
+    }
+
+
+    void compute_upper_bounds_after_backsubstitution(Layer<T>* input_layer){
+        T* input_lb = input_layer->lower_bounds;
+        T* input_ub = input_layer->upper_bounds;
+        int num_inputs = input_layer->input_size;
+
+        for(int i = 0; i < this->output_size; i++){
+            this->upper_bounds[i] = constant<T>(0);
+            for(int k = 0; k < num_inputs; k++){
+                if(greater_eq_zero(this->upper_constraints[i*this->max_coeffs + k], false)){
+                    this->upper_bounds[i] = this->upper_bounds[i] + this->upper_constraints[i*this->max_coeffs + k]*input_ub[k];
+                } else {
+                    this->upper_bounds[i] = this->upper_bounds[i] + this->upper_constraints[i*this->max_coeffs + k]*input_lb[k];
+                }
+            }
+        }
+
+        if constexpr (std::is_same<T, IntFp>::value){
+            normalize(this->output_size, (IntFp*) this->upper_bounds, (IntFp*) this->upper_bounds);
+        }
+
+        for(int i = 0; i < this->output_size; i++){
+            this->upper_bounds[i] = this->upper_bounds[i] + this->upper_constraints[(i+1)*this->max_coeffs - 1];
+        }
+    }
+    
+};
+
+
+#endif

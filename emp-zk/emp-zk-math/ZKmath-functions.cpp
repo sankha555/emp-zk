@@ -837,7 +837,7 @@ void ZKrSqrt(int party, IntFp *x, IntFp *y, int dim, int iter)
 	delete[] CI;
 }
 
-void ZKSigmoid(int party, IntFp *x, IntFp *y, int dim)
+void ZKSigmoid(int party, IntFp *x, IntFp *y, int dim, int scale)
 {
 	// step 1: compute whether x is positive 
 	IntFp *b = new IntFp[dim];
@@ -858,7 +858,7 @@ void ZKSigmoid(int party, IntFp *x, IntFp *y, int dim)
 	IntFp *d1 = new IntFp[dim];
 	IntFp *zaddone = new IntFp[dim];
 	for (int i = 0; i < dim; i++){
-		zaddone[i] = z[i] + 1;
+		zaddone[i] = z[i] + (1 << scale);			// bruh, there was a bug in their code. I fixed it.
 	}
 	ZKDiv(party, zaddone, d1, dim);
 
@@ -867,7 +867,7 @@ void ZKSigmoid(int party, IntFp *x, IntFp *y, int dim)
 	for (int i = 0; i < dim; i++){
 		d2[i] = z[i] * d1[i];
 	}
-	ZKpositiveTruncAny(party, d2, d2, dim, SCALE);
+	ZKpositiveTruncAny(party, d2, d2, dim, scale);
 
 	// step 6: compute y
 	for (int i = 0; i < dim; i++){
@@ -902,7 +902,7 @@ void ZKGeLU(int party, IntFp *x, IntFp *y, int dim)
 
 	// step 4: compute sigmoid
 	IntFp *d = new IntFp[dim];
-	ZKSigmoid(party, c, d, dim);
+	ZKSigmoid(party, c, d, dim, SCALE);
 
 	// step 5: compute z
 	IntFp *z = new IntFp[dim];

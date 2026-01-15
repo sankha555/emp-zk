@@ -1,7 +1,22 @@
 #include "ZKmath-global.h"
 
+int SCALE = 12;
+int NUM_RANGE = 13;
+
+int DIV_M = 5;
+int DIV_N = 20;
+
+int EXP_N = 24;
+int EXP_DIGIT_LEN = 12;
+int EXP_LUT_NUM = 2; 
+
+int SQRT_M = 6;
+int SQRT_N = 20;
+int CMP_DIGIT_LEN = 12;
+int CMP_LUT_NUM = 6;
+
 // LUTRange
-LUTRangeIntFp *LUTRange[NUM_RANGE];
+std::vector<std::unique_ptr<LUTRangeIntFp>> LUTRange;
 
 // LUTmsnzb
 LUTTwoValueIntFp *LUTmsnzb2value;
@@ -13,7 +28,7 @@ LUTTwoValueIntFp *LUTdiv;
 LUTIntFp *LUTextend;
 
 // LUTexp
-LUTIntFp *LUTexp[EXP_LUT_NUM];
+std::vector<std::unique_ptr<LUTIntFp>> LUTexp;
 
 // LUTsqrt 
 LUTIntFp *LUTsqrt;
@@ -22,17 +37,36 @@ LUTIntFp *LUTsqrtExtend;
 // LUTcmp
 uint64_t FINIAL_CMP_LUT_NUM = 0;
 uint64_t CMP_LAST_DIGIT_BITLEN = 0;
-LUTIntFp *LUTvrfyCmpLx[CMP_LUT_NUM];
+std::vector<std::unique_ptr<LUTIntFp>> LUTvrfyCmpLx;
 LUTIntFp *LUTvrfyCmpLy;
-LUTIntFp *LUTvrfyCmpLx_InP[CMP_LUT_NUM];
+std::vector<std::unique_ptr<LUTIntFp>> LUTvrfyCmpLx_InP;
 //
-LUTTwoValueIntFp *LUTCmpLx[CMP_LUT_NUM];
+std::vector<std::unique_ptr<LUTTwoValueIntFp>> LUTCmpLx;
 
 void startComputation(int party)
 {
+
+    NUM_RANGE = SCALE + 1;
+    DIV_M = (SCALE - 2)/2;
+    DIV_N = 28;
+
+    EXP_DIGIT_LEN = SCALE;
+    EXP_LUT_NUM = ceil((EXP_N * 1.0)/EXP_DIGIT_LEN);
+    
+    CMP_DIGIT_LEN = SCALE;
+    SQRT_M = SCALE/2;
+    CMP_LUT_NUM = ceil((BIT_LENGTH * 1.0)/CMP_DIGIT_LEN);
+
+    LUTRange.resize(NUM_RANGE);
+    LUTexp.resize(EXP_LUT_NUM);
+    LUTvrfyCmpLx.resize(CMP_LUT_NUM);
+    LUTvrfyCmpLx_InP.resize(CMP_LUT_NUM);
+    LUTCmpLx.resize(CMP_LUT_NUM);
+
+    
     // LUTRange
     for (int i = 2; i < NUM_RANGE; i++){  
-        LUTRange[i] = new LUTRangeIntFp(party);
+        LUTRange[i].reset(new LUTRangeIntFp(party));
         LUTRange[i]->LUTRangeinit(1ULL << i);
     }
 
@@ -93,7 +127,7 @@ void startComputation(int party)
     double j_real = 0;
     double value_real = 0;
     for (int i = 0; i < EXP_LUT_NUM - 1; i++){  
-        LUTexp[i] = new LUTIntFp(party);
+        LUTexp[i].reset(new LUTIntFp(party));
         for (int j = 0; j < lutSize; j++){
             j_real = double(j) / double(k);
             value_real = exp(-1 * (j_real * (1ULL << EXP_DIGIT_LEN * i)));
@@ -102,7 +136,7 @@ void startComputation(int party)
         LUTexp[i]->LUTinit(data);
         data.resize(0);
     }
-    LUTexp[EXP_LUT_NUM - 1] = new LUTIntFp(party);
+    LUTexp[EXP_LUT_NUM - 1].reset(new LUTIntFp(party));
     for (int j = 0; j < last_lutsize; j++){
         j_real = double(j) / double(k);
         value_real = exp(-1 * (j_real * (1ULL << EXP_DIGIT_LEN * (EXP_LUT_NUM - 1))));
@@ -156,7 +190,7 @@ void startComputation(int party)
     // construct LUT - LUTvrfyCmpLx
     uint64_t tmp = 0;
     for (int i = 0; i < FINIAL_CMP_LUT_NUM - 1; i++){
-        LUTvrfyCmpLx[i] = new LUTIntFp(party);
+        LUTvrfyCmpLx[i].reset(new LUTIntFp(party));
         for (int j = 0; j < lutSize; j++){
             uint64_t res1 = 0;
             uint64_t res2 = 0;
@@ -172,7 +206,7 @@ void startComputation(int party)
         LUTvrfyCmpLx[i]->LUTinit(data);
         data.resize(0);
     }
-    LUTvrfyCmpLx[FINIAL_CMP_LUT_NUM - 1] = new LUTIntFp(party);
+    LUTvrfyCmpLx[FINIAL_CMP_LUT_NUM - 1].reset(new LUTIntFp(party));
     for (int j = 0; j < last_lutsize; j++){
         uint64_t res1 = 0;
         uint64_t res2 = 0;
@@ -234,8 +268,9 @@ void startComputation(int party)
     p_digit[FINIAL_CMP_LUT_NUM - 1] = (p_cmp >> ((FINIAL_CMP_LUT_NUM - 1) * CMP_DIGIT_LEN)) & p_digit_mask;
     // construct LUT - LUTvrfyCmpLx_InP
     tmp = 0;
+
     for (int i = 0; i < FINIAL_CMP_LUT_NUM - 1; i++){
-        LUTvrfyCmpLx_InP[i] = new LUTIntFp(party);
+        LUTvrfyCmpLx_InP[i].reset(new LUTIntFp(party));
         for (int j = 0; j < lutSize; j++){
             uint64_t res1 = 0;
             uint64_t res2 = 0;
@@ -251,7 +286,7 @@ void startComputation(int party)
         LUTvrfyCmpLx_InP[i]->LUTinit(data);
         data.resize(0);
     }
-    LUTvrfyCmpLx_InP[FINIAL_CMP_LUT_NUM - 1] = new LUTIntFp(party);
+    LUTvrfyCmpLx_InP[FINIAL_CMP_LUT_NUM - 1].reset(new LUTIntFp(party));
     for (int j = 0; j < last_lutsize; j++){
         uint64_t res1 = 0;
         uint64_t res2 = 0;
@@ -271,7 +306,7 @@ void startComputation(int party)
     // // construct LUT - LUTCmpLx
     tmp = 0;
     for (int i = 0; i < FINIAL_CMP_LUT_NUM - 1; i++){
-        LUTCmpLx[i] = new LUTTwoValueIntFp(party);
+        LUTCmpLx[i].reset(new LUTTwoValueIntFp(party));
         for (int j = 0; j < lutSize; j++){
             uint64_t res1 = 0;
             uint64_t res2 = 0;
@@ -299,7 +334,7 @@ void startComputation(int party)
         coff1.resize(0);
         coff2.resize(0);
     }
-    LUTCmpLx[FINIAL_CMP_LUT_NUM - 1] = new LUTTwoValueIntFp(party);
+    LUTCmpLx[FINIAL_CMP_LUT_NUM - 1].reset(new LUTTwoValueIntFp(party));
     for (int j = 0; j < last_lutsize; j++){
         uint64_t res1 = 0;
         uint64_t res2 = 0;
@@ -333,24 +368,35 @@ void startComputation(int party)
 
 void endComputation(int party)
 {
-    for (int i = 2; i < NUM_RANGE; i++){  
-        delete LUTRange[i];
-    }
+    // for (int i = 2; i < NUM_RANGE; i++){  
+    //     LUTRange[i].reset();
+    //     LUTRange[i] = nullptr;
+    // }
+
+    LUTRange.clear();
+
     delete LUTmsnzb2value;
     delete LUTdiv;
     delete LUTextend;
-    for (int i = 0; i < EXP_LUT_NUM; i++){  
-        delete LUTexp[i];
-    }
+    // for (int i = 0; i < EXP_LUT_NUM; i++){  
+    //     delete LUTexp[i];
+    // }
+    LUTexp.clear();
+    
     delete LUTsqrtExtend;
     delete LUTsqrt;
-    for (int i = 0; i < FINIAL_CMP_LUT_NUM; i++){
-        delete LUTvrfyCmpLx[i];
-    }
+    // for (int i = 0; i < FINIAL_CMP_LUT_NUM; i++){
+    //     delete LUTvrfyCmpLx[i];
+    // }
+    LUTvrfyCmpLx.clear();
+
     delete LUTvrfyCmpLy;
-    for (int i = 0; i < FINIAL_CMP_LUT_NUM; i++){
-        delete LUTvrfyCmpLx_InP[i];
-    }
+    // for (int i = 0; i < FINIAL_CMP_LUT_NUM; i++){
+    //     delete LUTvrfyCmpLx_InP[i];
+    // }
+    LUTvrfyCmpLx_InP.clear();
+
+    LUTCmpLx.clear();
 }
 
 uint64_t Real2Field(double x, int scale = SCALE){

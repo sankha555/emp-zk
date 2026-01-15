@@ -7,6 +7,7 @@
 #include <emp-zk/ai/verification/affine.h>
 #include <emp-zk/ai/verification/conv2d.h>
 #include <emp-zk/ai/verification/relu.h>
+#include <emp-zk/ai/verification/sigmoid.h>
 #include <emp-zk/ai/verification/output.h>
 #include <emp-zk/ai/verification/feedforward.h>
 

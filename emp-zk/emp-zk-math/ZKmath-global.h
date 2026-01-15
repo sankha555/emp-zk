@@ -2,16 +2,18 @@
 #include "emp-zk/emp-zk-math/LUT.h"
 #include "emp-zk/emp-zk-math/LUT-twoValue.h"
 
+#pragma once
+
 #define BIT_LENGTH 61
-#define SCALE 12
+extern int SCALE;
 
 // LUTRange
-#define NUM_RANGE 13
-extern LUTRangeIntFp *LUTRange[NUM_RANGE];  // 0~12
+extern int NUM_RANGE;
+extern std::vector<std::unique_ptr<LUTRangeIntFp>> LUTRange; //[NUM_RANGE];  // 0~12
 
 // LUTdiv
-#define DIV_M 5     //(SCALE - 2)/2
-#define DIV_N 20
+extern int DIV_M;     //(SCALE - 2)/2
+extern int DIV_N;
 // #define DIV_N 13
 extern LUTTwoValueIntFp *LUTdiv;
 
@@ -19,14 +21,14 @@ extern LUTTwoValueIntFp *LUTdiv;
 extern LUTIntFp *LUTextend;
 
 // LUTexp
-#define EXP_N 16
-#define EXP_DIGIT_LEN 12
-#define EXP_LUT_NUM 2        // EXP_LUT_NUM = ceil(EXP_N/EXP_DIGIT_LEN)
-extern LUTIntFp *LUTexp[EXP_LUT_NUM]; 
+extern int EXP_N;
+extern int EXP_DIGIT_LEN;
+extern int EXP_LUT_NUM;       // EXP_LUT_NUM = ceil(EXP_N/EXP_DIGIT_LEN)
+extern std::vector<std::unique_ptr<LUTIntFp>> LUTexp; 
 
 // sqrt
-#define SQRT_M 6    // SCALE/2
-#define SQRT_N 20
+extern int SQRT_M;    // SCALE/2
+extern int SQRT_N;
 extern LUTIntFp *LUTsqrt;
 extern LUTIntFp *LUTsqrtExtend;
 
@@ -34,15 +36,15 @@ extern LUTIntFp *LUTsqrtExtend;
 extern LUTTwoValueIntFp *LUTmsnzb2value;
 
 // LUTcmp - verify
-#define CMP_DIGIT_LEN 12
-#define CMP_LUT_NUM 6        // CMP_LUT_NUM = ceil(BIT_LENGTH/CMP_DIGIT_LEN)
+extern int CMP_DIGIT_LEN;
+extern int CMP_LUT_NUM;        // CMP_LUT_NUM = ceil(BIT_LENGTH/CMP_DIGIT_LEN)
 extern uint64_t FINIAL_CMP_LUT_NUM;
 extern uint64_t CMP_LAST_DIGIT_BITLEN;
-extern LUTIntFp *LUTvrfyCmpLx[CMP_LUT_NUM];
+extern std::vector<std::unique_ptr<LUTIntFp>> LUTvrfyCmpLx;
 extern LUTIntFp *LUTvrfyCmpLy;
-extern LUTIntFp *LUTvrfyCmpLx_InP[CMP_LUT_NUM];
+extern std::vector<std::unique_ptr<LUTIntFp>> LUTvrfyCmpLx_InP;
 // LUTcmp - computation
-extern LUTTwoValueIntFp *LUTCmpLx[CMP_LUT_NUM];
+extern std::vector<std::unique_ptr<LUTTwoValueIntFp>> LUTCmpLx;
 
 void startComputation(int party);
 void endComputation(int party);

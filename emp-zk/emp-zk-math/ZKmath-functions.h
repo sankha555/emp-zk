@@ -26,7 +26,7 @@ void ZKExp(int party, IntFp *x, IntFp *y, int dim);
 void ZKDiv(int party, IntFp *x, IntFp *y, int dim);
 void ZKrSqrt(int party, IntFp *x, IntFp *y, int dim, int iter);
 
-void ZKSigmoid(int party, IntFp *x, IntFp *y, int dim);
+void ZKSigmoid(int party, IntFp *x, IntFp *y, int dim, int scale);
 void ZKGeLU(int party, IntFp *x, IntFp *y, int dim);
 void ZKSoftmax(int party, IntFp *x, IntFp *y, int rows, int cols);
 void ZKLayerNorm(int party, IntFp *x, IntFp *y, IntFp *gamma, IntFp *beta, int rows, int cols);

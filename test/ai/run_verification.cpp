@@ -67,7 +67,10 @@ void float_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
     num_examples_verified += (int) verified;
     num_examples_classified += (int) classified;
 
-    if(party == ALICE)    cout << "EXAMPLE " << i+1 << " : " << (verified ? "YES" : "NO") << "\n";
+    double tt = time_from(start);
+    if(party == ALICE)   cerr << "\rVerified: " << num_examples_verified << "/" << (i+1) << " images [Avg. time = " << (tt/(i+1))/1e6 << " sec]" << std::flush;
+
+    if(party == ALICE)   cout << "EXAMPLE " << i+1 << " : " << (verified ? "YES" : "NO") << "\n";
 
     if(party == ALICE)  model_float->describe(false, false);
   }
@@ -106,6 +109,8 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
 
   setup_plain_prot(false, "");
   setup_zk_arith<BoolIO<NetIO>>(ios, threads, party);
+
+  SCALE = FXPSCALE;
 
   init_verification();
   startComputation(party);
@@ -229,6 +234,9 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
 
   if(party == ALICE)   cout << "\nVerified " << num_examples_verified << "/" << num_examples << " examples\n";
 
+  endComputation(party);
+
+
   bool cheated = finalize_zk_arith<BoolIO<NetIO>>();
   if(party == BOB){
     cerr << "\n" << (cheated ? "\033[31mVerfication failed!" : "\033[32mVerfication successful!") << "\033[0m\n";
@@ -239,6 +247,7 @@ void field_verification(BoolIO<NetIO> *ios[threads], int* layer_specs, int num_l
   if(party == ALICE)   cout << "Communication: " << ios[0]->counter/(1024.0 * 1024.0) << " MB\n";
 
   if(!print_to_stdout) std::cout.rdbuf(original_buf2);
+
 }
 
 
@@ -263,6 +272,8 @@ void test_verification(BoolIO<NetIO> *ios[threads], int party) {
 
   int num_layers = layer_specs_vec.back();
   int* layer_specs = layer_specs_vec.data();
+
+  // SCALE = FXPSCALE;
 
   if(test_mode == 0){
     float_verification(ios, layer_specs, num_layers);
