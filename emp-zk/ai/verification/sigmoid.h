@@ -56,7 +56,7 @@ class Sigmoid : public Layer<T> {
 
         if(do_inference){
             if constexpr (std::is_same<IntFp, T>::value && SECURE){
-                ZKSigmoid(this->party, this->input, this->output, this->output_size, FXPSCALE);
+                ZKSigmoidEW(this->party, this->input, this->output, this->output_size, FXPSCALE);
             } else {
                 sigmoid_layer(this->input_size, this->input, this->output);
             }
