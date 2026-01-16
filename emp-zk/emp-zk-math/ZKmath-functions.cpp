@@ -839,6 +839,7 @@ void ZKrSqrt(int party, IntFp *x, IntFp *y, int dim, int iter)
 
 void ZKSigmoid(int party, IntFp *x, IntFp *y, int dim, int scale)
 {
+	auto start = clock_start();
 	// step 1: compute whether x is positive 
 	IntFp *b = new IntFp[dim];
 	uint64_t constant = (PR+1)/2;
@@ -850,6 +851,10 @@ void ZKSigmoid(int party, IntFp *x, IntFp *y, int dim, int scale)
 		x_bar[i] = (b[i] * 2 + (PR - 1)) * x[i];
 	}
 
+	double tt = time_from(start);
+	// cerr << "CMP = " << tt/1e3 << " ms\n";
+	start = clock_start();
+
 	// step 3: compute z
 	IntFp *z = new IntFp[dim];
 	ZKExp(party, x_bar, z, dim);
@@ -860,7 +865,14 @@ void ZKSigmoid(int party, IntFp *x, IntFp *y, int dim, int scale)
 	for (int i = 0; i < dim; i++){
 		zaddone[i] = z[i] + (1 << scale);			// bruh, there was a bug in their code. I fixed it.
 	}
+	tt = time_from(start);
+	// cerr << "EXP = " << tt/1e3 << " ms\n";
+	start = clock_start();
+
 	ZKDiv(party, zaddone, d1, dim);
+	tt = time_from(start);
+	// cerr << "DIV = " << tt/1e3 << " ms\n";
+	start = clock_start();
 
 	// step 5: compute d2 and truncation
 	IntFp *d2 = new IntFp[dim];
@@ -868,6 +880,9 @@ void ZKSigmoid(int party, IntFp *x, IntFp *y, int dim, int scale)
 		d2[i] = z[i] * d1[i];
 	}
 	ZKpositiveTruncAny(party, d2, d2, dim, scale);
+	tt = time_from(start);
+	// cerr << "TRN = " << tt/1e3 << " ms\n";
+	start = clock_start();
 
 	// step 6: compute y
 	for (int i = 0; i < dim; i++){

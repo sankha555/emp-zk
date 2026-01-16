@@ -28,7 +28,10 @@ map<string, float> BS_WAIVER_THRESHOLDS;
 IntFp FIELD_ZERO;
 IntFp FIELD_ONE;
 IntFp FIELD_SCALED_ONE;
+IntFp FIELD_SCALED_HALF;
+
 IntFp FIELD_MINUS_ONE;
+
 uint64_t ZERO_COMP_CONSTANT = (PR+1)/2;
 uint64_t MINUS_ONE = (PR - 1);
 
@@ -56,7 +59,12 @@ void init_verification(){
     FIELD_SCALED_ONE = IntFp(1ULL << FXPSCALE, PUBLIC);
     FIELD_MINUS_ONE = IntFp(PR - 1, PUBLIC);
 
+    FIELD_SCALED_HALF = IntFp(1ULL << (FXPSCALE-1), PUBLIC);
+
+
     start_time = clock_start();
+
+
 }
 
 

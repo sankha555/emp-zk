@@ -286,8 +286,52 @@ std::pair<IntFp*, IntFp*> sigmoid_bundle(int sz, IntFp* current_lbs, IntFp* curr
 }
 
 
+void ZKSigmoidEW(int party, IntFp* x, IntFp* y, int dim, int scale){
+    // auto start = clock_start();
+    // double tt;
+
+    IntFp* pos_x = new IntFp[dim];
+    ZKcmpPositive(party, x, ZERO_COMP_CONSTANT, pos_x, dim);
+
+    IntFp* abs_x = new IntFp[dim];
+    for(int i = 0; i < dim; i++){
+        abs_x[i] = pos_x[i] * x[i] + (FIELD_ONE + pos_x[i].negate()) * x[i].negate();
+    }
+
+	IntFp *ex = new IntFp[dim];
+	ZKExp(party, abs_x, ex, dim);
+
+	IntFp *d1 = new IntFp[dim];
+	IntFp *ex_plus_one = new IntFp[dim];
+	for (int i = 0; i < dim; i++){
+		ex_plus_one[i] = ex[i] + FIELD_SCALED_ONE;
+	}
+
+    uint64_t* clt_sigmoid = new uint64_t[dim];
+
+	// ZKDiv(party, zaddone, d1, dim);
+    if(party == ALICE){
+        for(int i = 0; i < dim; i++){
+            clt_sigmoid[i] = divide<uint64_t>(HIGH64(FIELD_SCALED_ONE.value), HIGH64(ex_plus_one[i].value));
+        }
+    }
+
+    for(int i = 0; i < dim; i++){
+        y[i] = IntFp(clt_sigmoid[i], ALICE);
+        inner_product_bundle(1, y + i, ex_plus_one + i, party);
+
+        y[i] = y[i] + FIELD_SCALED_HALF.negate();
+        y[i] =  FIELD_SCALED_HALF + pos_x[i] * y[i] + (FIELD_ONE + pos_x[i].negate()) * y[i].negate();
+    }
+
+	// ZKpositiveTruncAny(party, sigmoid, sigmoid, dim, scale);
+
+    // tt = time_from(start);
+    // cerr << "SGM = " << tt/1e3 << " ms\n";
+}
+
 void ZKSigmoidAndDerivative(int party, IntFp* x, IntFp* y, IntFp* z, int dim){
-    ZKSigmoid(party, x, y, dim, FXPSCALE);
+    ZKSigmoidEW(party, x, y, dim, FXPSCALE);
 
     // sigmoid'(x) = sigmoid(x) * (1 - sigmoid(x))
     for(int i = 0; i < dim; i++){
